@@ -157,6 +157,17 @@ const breadcrumbSchema = {
               {isFoP && (
                 <div class="fop-download-warning">{t('work.ipStatus.downloadProhibited')}</div>
               )}
+              <a
+                href={`/${lang}/render/?model=${encodeURIComponent(getAssetUrl(data.model.glb))}&title=${encodeURIComponent(data.title[lang])}&slug=${work.id}`}
+                class="brutal-btn brutal-btn-gold flex-1 justify-center"
+                title={t('work.renderPhoto')}
+              >
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                  <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+                <span>{t('work.renderPhoto')}</span>
+              </a>
               <button id="share-btn" class="brutal-btn brutal-btn-black justify-center sm:w-auto" aria-label={t('work.share')}>
                 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="18" cy="5" r="3"></circle>

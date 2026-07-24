@@ -72,6 +72,10 @@ export const ui = {
     'work.ipStatus.downloadProhibited': 'Downloads sind für dieses Werk untersagt (nur Ansicht).',
     'work.ipStatus.takedown': 'Urheberrechts- oder Takedown-Hinweis:',
 
+    // Photo Render
+    'work.renderPhoto': 'Foto Rendern',
+    'render.backToModel': 'Zurück zum Modell',
+
     // Stats section
     'stats.title': 'Zahlen & Fakten',
     'stats.models': 'Werke',
@@ -180,6 +184,10 @@ export const ui = {
     'work.ipStatus.authorizedUse.body': 'This work is displayed based on a specific permission from the creator or rights holder. Download availability depends on the granted authorization. Reuse beyond the permitted scope may infringe third-party rights.',
     'work.ipStatus.downloadProhibited': 'Downloads are prohibited for this work (view-only).',
     'work.ipStatus.takedown': 'For copyright concerns or takedown requests:',
+
+    // Photo Render
+    'work.renderPhoto': 'Render Photo',
+    'render.backToModel': 'Back to model',
 
     // Stats section
     'stats.title': 'By the Numbers',

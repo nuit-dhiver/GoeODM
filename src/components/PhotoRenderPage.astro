@@ -1,0 +1,410 @@
+---
+import { useTranslations, getWorkPath, type Lang } from '@/i18n/ui';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Create high-quality rendered screenshots from 3D models in your browser" />
+    <title>Beautifully Shadow — Open Museum</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
+    <!-- Fonts (same as main site) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- model-viewer -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+  </head>
+
+  <body class="bg-neutral-950 text-neutral-100 h-screen overflow-hidden select-none">
+    <div id="app" class="flex flex-col h-full">
+
+      <!-- Header -->
+      <header class="flex items-center justify-between px-5 py-3 border-b border-neutral-800 shrink-0">
+        <div class="flex items-center gap-4">
+          <a
+            id="back-link"
+            href={`/${lang}/`}
+            class="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 12H5"></path>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>{t('render.backToModel')}</span>
+          </a>
+          <div class="w-px h-5 bg-neutral-700"></div>
+          <h1 class="text-lg font-semibold tracking-tight">Beautifully Shadow</h1>
+        </div>
+        <span id="file-name" class="text-sm text-neutral-500 truncate max-w-[200px]"></span>
+      </header>
+
+      <!-- Main content -->
+      <div class="flex flex-1 min-h-0">
+
+        <!-- Viewer area -->
+        <main class="relative flex-1 min-w-0">
+          <!-- Drop zone overlay -->
+          <div id="drop-overlay" class="absolute inset-0 z-20 hidden items-center justify-center bg-neutral-950/80 border-2 border-dashed border-blue-500 rounded-lg m-2 pointer-events-none">
+            <div class="text-center">
+              <svg class="mx-auto mb-2 w-12 h-12 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 16V4m0 0l-4 4m4-4l4 4M4 20h16" /></svg>
+              <p class="text-blue-300 text-lg font-medium">Drop GLB file here</p>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div id="empty-state" class="absolute inset-0 z-10 flex flex-col items-center justify-center text-neutral-500">
+            <svg class="mb-4 w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+            <p class="text-lg mb-1">No model loaded</p>
+            <p class="text-sm">Drag &amp; drop a GLB file or use the panel to load one</p>
+          </div>
+
+          <!-- Background preview layer -->
+          <div id="bg-preview" class="absolute inset-0"></div>
+
+          <!-- 3D Viewer -->
+          <model-viewer
+            id="viewer"
+            class="w-full h-full"
+            camera-controls
+            touch-action="pan-y"
+            shadow-intensity="0"
+            shadow-softness="0.8"
+            exposure="1"
+            interaction-prompt="none"
+            style="background-color: transparent;"
+          ></model-viewer>
+
+          <!-- Watermark preview overlay -->
+          <div id="watermark-preview" class="absolute inset-0 pointer-events-none overflow-hidden" style="z-index: 5; display: none;">
+            <span id="watermark-preview-text" style="font-family: sans-serif; font-weight: bold; line-height: 1; white-space: nowrap;"></span>
+          </div>
+        </main>
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-72 shrink-0 border-l border-neutral-800 overflow-y-auto flex flex-col gap-0">
+
+          <!-- File section -->
+          <section class="p-4 border-b border-neutral-800">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">Model</h2>
+            <label class="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg cursor-pointer transition-colors text-sm font-medium">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+              Load GLB File
+              <input id="file-input" type="file" accept=".glb" class="hidden" />
+            </label>
+          </section>
+
+          <!-- Resolution section -->
+          <section class="p-4 border-b border-neutral-800">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">Resolution</h2>
+            <select id="preset-select" class="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-sm mb-3 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              <option value="1280x720">720p (1280 × 720)</option>
+              <option value="1920x1080" selected>1080p (1920 × 1080)</option>
+              <option value="2560x1440">1440p (2560 × 1440)</option>
+              <option value="3840x2160">4K (3840 × 2160)</option>
+              <option value="custom">Custom</option>
+            </select>
+            <div class="flex gap-2">
+              <div class="flex-1">
+                <label class="text-xs text-neutral-500 mb-1 block">Width</label>
+                <input id="width-input" type="number" value="1920" min="1" max="8192" class="w-full px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              </div>
+              <div class="flex-1">
+                <label class="text-xs text-neutral-500 mb-1 block">Height</label>
+                <input id="height-input" type="number" value="1080" min="1" max="8192" class="w-full px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              </div>
+            </div>
+          </section>
+
+          <!-- Background section -->
+          <section class="p-4 border-b border-neutral-800">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">Background</h2>
+            <label class="flex items-center justify-between cursor-pointer">
+              <span class="text-sm">Transparent</span>
+              <div class="relative">
+                <input id="transparent-toggle" type="checkbox" checked class="sr-only peer" />
+                <div class="w-9 h-5 bg-neutral-700 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
+              </div>
+            </label>
+
+            <div id="bg-controls" class="hidden mt-3 flex flex-col gap-3">
+              <div class="flex gap-2">
+                <label class="flex-1">
+                  <input type="radio" name="bg-type" value="solid" checked class="sr-only peer" />
+                  <div class="text-center py-2 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-500/10 peer-checked:text-blue-400 transition-colors">Solid</div>
+                </label>
+                <label class="flex-1">
+                  <input type="radio" name="bg-type" value="gradient" class="sr-only peer" />
+                  <div class="text-center py-2 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-500/10 peer-checked:text-blue-400 transition-colors">Gradient</div>
+                </label>
+              </div>
+              <div id="bg-solid-controls" class="flex items-center justify-between">
+                <label for="bg-color" class="text-sm text-neutral-400">Colour</label>
+                <input id="bg-color" type="color" value="#ffffff" class="w-8 h-8 rounded cursor-pointer bg-transparent border border-neutral-700" />
+              </div>
+              <div id="bg-gradient-controls" class="hidden flex flex-col gap-2">
+                <div class="flex gap-2">
+                  <label class="flex-1">
+                    <input type="radio" name="bg-gradient-dir" value="horizontal" checked class="sr-only peer" />
+                    <div class="text-center py-1.5 px-2 bg-neutral-800 border border-neutral-700 rounded-lg text-xs cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-500/10 peer-checked:text-blue-400 transition-colors">Horizontal</div>
+                  </label>
+                  <label class="flex-1">
+                    <input type="radio" name="bg-gradient-dir" value="vertical" class="sr-only peer" />
+                    <div class="text-center py-1.5 px-2 bg-neutral-800 border border-neutral-700 rounded-lg text-xs cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-500/10 peer-checked:text-blue-400 transition-colors">Vertical</div>
+                  </label>
+                </div>
+                <div class="flex items-center justify-between">
+                  <label for="bg-color-from" class="text-sm text-neutral-400">From</label>
+                  <input id="bg-color-from" type="color" value="#1e3a5f" class="w-8 h-8 rounded cursor-pointer bg-transparent border border-neutral-700" />
+                </div>
+                <div class="flex items-center justify-between">
+                  <label for="bg-color-to" class="text-sm text-neutral-400">To</label>
+                  <input id="bg-color-to" type="color" value="#0f172a" class="w-8 h-8 rounded cursor-pointer bg-transparent border border-neutral-700" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- View Mode section -->
+          <section class="p-4 border-b border-neutral-800">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">View Mode</h2>
+            <div class="flex gap-2">
+              <button data-view-mode="default"
+                class="flex-1 text-center py-2 px-3 border rounded-lg text-sm cursor-pointer transition-colors border-blue-500 bg-blue-500/10 text-blue-400">
+                Default
+              </button>
+              <button data-view-mode="matcap"
+                class="flex-1 text-center py-2 px-3 border rounded-lg text-sm cursor-pointer transition-colors border-neutral-700 bg-neutral-800 text-neutral-300">
+                Matcap
+              </button>
+              <button data-view-mode="mesh"
+                class="flex-1 text-center py-2 px-3 border rounded-lg text-sm cursor-pointer transition-colors border-neutral-700 bg-neutral-800 text-neutral-300">
+                Mesh
+              </button>
+            </div>
+
+            <div id="matcap-settings" class="hidden mt-3 flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <label for="matcap-color" class="text-sm text-neutral-400">Colour</label>
+                <input id="matcap-color" type="color" value="#ffffff" class="w-8 h-8 rounded cursor-pointer bg-transparent border border-neutral-700" />
+              </div>
+              <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-sm text-neutral-400">Flat Shading</span>
+                <div class="relative">
+                  <input id="matcap-flat-shading" type="checkbox" class="sr-only peer" />
+                  <div class="w-9 h-5 bg-neutral-700 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+                  <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
+                </div>
+              </label>
+            </div>
+
+            <div id="mesh-settings" class="hidden mt-3">
+              <div class="flex items-center justify-between">
+                <label for="mesh-color" class="text-sm text-neutral-400">Colour</label>
+                <input id="mesh-color" type="color" value="#60a5fa" class="w-8 h-8 rounded cursor-pointer bg-transparent border border-neutral-700" />
+              </div>
+            </div>
+          </section>
+
+          <!-- Format section -->
+          <section class="p-4 border-b border-neutral-800">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">Format</h2>
+            <div class="flex gap-2 mb-3">
+              <label class="flex-1">
+                <input type="radio" name="format" value="image/png" checked class="sr-only peer" />
+                <div class="text-center py-2 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-500/10 peer-checked:text-blue-400 transition-colors">PNG</div>
+              </label>
+              <label class="flex-1">
+                <input type="radio" name="format" value="image/jpeg" class="sr-only peer" />
+                <div class="text-center py-2 px-3 bg-neutral-800 border border-neutral-700 rounded-lg text-sm cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-500/10 peer-checked:text-blue-400 transition-colors">JPEG</div>
+              </label>
+            </div>
+            <div id="quality-group" class="hidden">
+              <label class="flex items-center justify-between text-sm mb-1">
+                <span class="text-neutral-400">Quality</span>
+                <span id="quality-value" class="text-neutral-300 tabular-nums">92%</span>
+              </label>
+              <input id="quality-slider" type="range" min="10" max="100" value="92" class="w-full accent-blue-500" />
+            </div>
+          </section>
+
+          <!-- Watermark section -->
+          <section class="p-4 border-b border-neutral-800">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-3">Watermark</h2>
+            <label class="flex items-center justify-between cursor-pointer">
+              <span class="text-sm">Enable Watermark</span>
+              <div class="relative">
+                <input id="watermark-toggle" type="checkbox" class="sr-only peer" />
+                <div class="w-9 h-5 bg-neutral-700 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
+                <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
+              </div>
+            </label>
+
+            <div id="watermark-controls" class="hidden mt-3 flex flex-col gap-3">
+              <div>
+                <label class="text-xs text-neutral-500 mb-1 block">Text</label>
+                <input id="watermark-text" type="text" placeholder="© Your Name" maxlength="200"
+                  class="w-full px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-neutral-600" />
+              </div>
+
+              <div>
+                <label class="text-xs text-neutral-500 mb-1.5 block">Position</label>
+                <div class="grid grid-cols-3 gap-1 w-24">
+                  <button data-wm-pos="top-left"      class="wm-pos-btn aspect-square rounded bg-neutral-800 border border-neutral-700 hover:border-blue-500 transition-colors flex items-center justify-center" title="Top Left">     <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span></button>
+                  <button data-wm-pos="top-center"    class="wm-pos-btn aspect-square rounded bg-neutral-800 border border-neutral-700 hover:border-blue-500 transition-colors flex items-center justify-center" title="Top Center">   <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span></button>
+                  <button data-wm-pos="top-right"     class="wm-pos-btn aspect-square rounded bg-neutral-800 border border-neutral-700 hover:border-blue-500 transition-colors flex items-center justify-center" title="Top Right">    <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span></button>
+                  <button data-wm-pos="middle-left"   class="wm-pos-btn aspect-square rounded bg-neutral-800 border border-neutral-700 hover:border-blue-500 transition-colors flex items-center justify-center" title="Middle Left">  <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span></button>
+                  <button data-wm-pos="middle-center" class="wm-pos-btn aspect-square rounded bg-neutral-800 border border-neutral-700 hover:border-blue-500 transition-colors flex items-center justify-center" title="Center">       <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span></button>
+                  <button data-wm-pos="middle-right"  class="wm-pos-btn aspect-square rounded bg-neutral-800 border border-neutral-700 hover:border-blue-500 transition-colors flex items-center justify-center" title="Middle Right"> <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span></button>
+                  <button data-wm-pos="bottom-left"   class="wm-pos-btn aspect-square rounded bg-neutral-800 border border-neutral-700 hover:border-blue-500 transition-colors flex items-center justify-center" title="Bottom Left">  <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span></button>
+                  <button data-wm-pos="bottom-center" class="wm-pos-btn aspect-square rounded bg-neutral-800 border border-neutral-700 hover:border-blue-500 transition-colors flex items-center justify-center" title="Bottom Center"><span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span></button>
+                  <button data-wm-pos="bottom-right"  class="wm-pos-btn aspect-square rounded bg-neutral-800 border border-neutral-700 hover:border-blue-500 transition-colors flex items-center justify-center wm-pos-active" title="Bottom Right"><span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span></button>
+                </div>
+              </div>
+
+              <div class="flex gap-3 items-end">
+                <div class="flex-1">
+                  <label class="text-xs text-neutral-500 mb-1 block" for="watermark-size">Size (px)</label>
+                  <input id="watermark-size" type="number" value="48" min="8" max="512"
+                    class="w-full px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                </div>
+                <div class="flex items-center justify-between mb-0.5">
+                  <label for="watermark-color" class="text-xs text-neutral-500 mr-2">Colour</label>
+                  <input id="watermark-color" type="color" value="#ffffff"
+                    class="w-8 h-8 rounded cursor-pointer bg-transparent border border-neutral-700" />
+                </div>
+              </div>
+
+              <div>
+                <label class="flex items-center justify-between text-xs mb-1">
+                  <span class="text-neutral-500">Opacity</span>
+                  <span id="watermark-opacity-value" class="text-neutral-300 tabular-nums">80%</span>
+                </label>
+                <input id="watermark-opacity" type="range" min="0" max="100" value="80" class="w-full accent-blue-500" />
+              </div>
+
+              <div class="flex items-center justify-between">
+                <label for="watermark-padding" class="text-xs text-neutral-500">Padding (px)</label>
+                <input id="watermark-padding" type="number" value="32" min="0" max="512"
+                  class="w-20 px-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              </div>
+            </div>
+          </section>
+
+          <!-- Download -->
+          <section class="p-4 mt-auto">
+            <button id="download-btn" disabled class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-neutral-800 disabled:text-neutral-600 disabled:cursor-not-allowed rounded-lg text-sm font-semibold transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" /></svg>
+              <span id="download-text">Download Screenshot</span>
+            </button>
+          </section>
+
+        </aside>
+      </div>
+    </div>
+
+    <style is:global>
+      @import "tailwindcss";
+
+      model-viewer {
+        --poster-color: transparent;
+      }
+
+      #viewer.transparent-bg {
+        background-image:
+          linear-gradient(45deg, #1a1a1a 25%, transparent 25%),
+          linear-gradient(-45deg, #1a1a1a 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #1a1a1a 75%),
+          linear-gradient(-45deg, transparent 75%, #1a1a1a 75%);
+        background-size: 20px 20px;
+        background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+        background-color: #252525;
+      }
+
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        opacity: 1;
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        height: 4px;
+        border-radius: 2px;
+        background: #404040;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #3b82f6;
+        cursor: pointer;
+      }
+
+      .wm-pos-btn.wm-pos-active span {
+        background-color: #60a5fa;
+      }
+    </style>
+
+    <script>
+      import "@google/model-viewer";
+      import { initViewer, loadFromUrl } from "@/utils/photo-render/viewer";
+      import { initUI } from "@/utils/photo-render/ui";
+      import { initCapture } from "@/utils/photo-render/capture";
+      import { initModes } from "@/utils/photo-render/modes";
+
+      initViewer();
+      initUI();
+      initCapture();
+      initModes();
+
+      async function autoLoadModel() {
+        const params = new URLSearchParams(window.location.search);
+        const modelUrl = params.get("model");
+        const modelTitle = params.get("title");
+        const slug = params.get("slug");
+
+        if (slug) {
+          const backLink = document.getElementById("back-link") as HTMLAnchorElement | null;
+          if (backLink) {
+            const lang = document.documentElement.lang || "en";
+            backLink.href = `/${lang}/${slug}/`;
+          }
+        }
+
+        if (!modelUrl) return;
+
+        try {
+          const { isFirebaseConfigured, fetchSecureModel } = await import("@/utils/firebase-client");
+          if (isFirebaseConfigured) {
+            const secureUrl = await fetchSecureModel(modelUrl);
+            loadFromUrl(secureUrl, modelTitle || undefined);
+            return;
+          }
+        } catch {
+          // Firebase not available, use direct URL
+        }
+
+        loadFromUrl(modelUrl, modelTitle || undefined);
+      }
+
+      autoLoadModel();
+    </script>
+  </body>
+</html>
