@@ -15,7 +15,7 @@
   "dependencies": {
     "@astrojs/sitemap": "^3.3.0",
     "@google/model-viewer": "^4.0.0",
-    "astro": "^6.4.6",
+    "astro": "^7.1.0",
     "firebase": "^12.13.0",
     "marked": "^17.0.2"
   },
