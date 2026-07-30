@@ -24,8 +24,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/717967107645/locations/global/workloadIdentityPools/github-actions/providers/github-oidc' }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT || 'github-astro-build@open-museum-885a1.iam.gserviceaccount.com' }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
