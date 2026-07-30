@@ -3,9 +3,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
+import { fetchWorksFromFirestore } from './lib/firestore-works.mjs';
 
 const REPO_ROOT = process.cwd();
-const WORKS_CONTENT_DIR = path.join(REPO_ROOT, 'src/content/works');
 const PUBLIC_DIR = path.join(REPO_ROOT, 'public');
 const THUMBNAIL_DIR = path.join(PUBLIC_DIR, 'images/thumbnails/works');
 
@@ -42,25 +42,6 @@ async function pathExists(filePath) {
   } catch {
     return false;
   }
-}
-
-async function listJsonFilesRecursively(dirPath) {
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
-  const files = [];
-
-  for (const entry of entries) {
-    const absPath = path.join(dirPath, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...(await listJsonFilesRecursively(absPath)));
-      continue;
-    }
-
-    if (entry.isFile() && entry.name.endsWith('.json')) {
-      files.push(absPath);
-    }
-  }
-
-  return files;
 }
 
 function parseEnvVariable(rawEnv, key) {
@@ -140,23 +121,13 @@ async function runWithConcurrency(items, limit, worker) {
 
 async function main() {
   const publicAssetsBaseUrl = await loadPublicAssetsBaseUrl();
-  const workJsonFiles = await listJsonFilesRecursively(WORKS_CONTENT_DIR);
+  const works = await fetchWorksFromFirestore();
   const photoSet = new Set();
 
-  for (const filePath of workJsonFiles) {
-    const raw = await fs.readFile(filePath, 'utf8');
-    let parsed;
+  for (const work of works) {
+    if (!Array.isArray(work.data?.photos)) continue;
 
-    try {
-      parsed = JSON.parse(raw);
-    } catch (error) {
-      console.warn(`[thumbnail] Skipping invalid JSON: ${path.relative(REPO_ROOT, filePath)} (${error.message})`);
-      continue;
-    }
-
-    if (!Array.isArray(parsed.photos)) continue;
-
-    for (const photo of parsed.photos) {
+    for (const photo of work.data.photos) {
       if (typeof photo === 'string' && photo.trim()) {
         photoSet.add(photo.trim());
       }
@@ -197,6 +168,7 @@ async function main() {
     }
   });
 
+  console.log(`[thumbnail] Works loaded from Firestore: ${works.length}`);
   console.log(`[thumbnail] Work gallery photos discovered: ${photos.length}`);
   console.log(`[thumbnail] Generated: ${generatedCount}`);
   console.log(`[thumbnail] Skipped existing: ${skippedCount}`);

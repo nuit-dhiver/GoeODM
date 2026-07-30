@@ -20,10 +20,10 @@ Each work page shows its IP status (public domain, freedom of panorama, or autho
 
 | Layer | Choice |
 |---|---|
-| Framework | [Astro](https://astro.build/) v6 (static output) |
+| Framework | [Astro](https://astro.build/) v7 (static output) |
 | Styling | Tailwind CSS v4 |
 | 3D viewer | [`<model-viewer>`](https://modelviewer.dev/) v4 |
-| Content | JSON content collection (`src/content/works/`) |
+| Content | Cloud Firestore (`content` / `works`) loaded at build time |
 | i18n | Astro built-in routing — English at `/`, German under `/de/` |
 | Deployment | GitHub Pages via GitHub Actions |
 
@@ -32,6 +32,17 @@ Each work page shows its IP status (public domain, freedom of panorama, or autho
 ```bash
 pnpm install
 pnpm dev
+```
+
+Content is fetched from Firestore during `astro dev` and `astro build`. Authenticate with Application Default Credentials first:
+
+```bash
+# Option A: gcloud ADC
+gcloud auth application-default login
+
+# Option B: point at a credentials file
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/adc.json
+export GOOGLE_CLOUD_PROJECT=open-museum-885a1
 ```
 
 Create a `.env` file in the project root for optional configuration (see [Asset Storage](#asset-storage)).
@@ -47,7 +58,7 @@ The storage URL is configured via the `PUBLIC_ASSETS_BASE_URL` environment varia
 PUBLIC_ASSETS_BASE_URL=https://open-museum-885a1.firebasestorage.app
 ```
 
-Asset paths in content JSON are resolved at build/runtime via [`src/utils/assets.ts`](src/utils/assets.ts).
+Asset paths in Firestore documents are resolved at build/runtime via [`src/utils/assets.ts`](src/utils/assets.ts).
 
 ### Modes
 
@@ -67,7 +78,11 @@ When Firebase is configured, model files can be loaded through authenticated req
 
 ## Content
 
-Each work is defined in `src/content/works/{slug}.json`. Key fields include:
+Works are stored in Firestore (project `open-museum-885a1`, database `content`, collection `works`). Each document ID is the work slug (for example `berlinstein`). Astro loads the collection **only at build/dev time** via a custom content loader — visitors receive static HTML and never talk to Firestore.
+
+Edit documents in the [Firebase Console](https://console.firebase.google.com/project/open-museum-885a1/firestore/databases/content/data) or via the Firebase/Admin CLI. Security rules allow **public reads** (the work data is public website content) and **deny all client writes**. Console/CLI updates use IAM and are not blocked by those rules. There is no in-app content editor.
+
+Key fields:
 
 - `title`, `description` — bilingual (`de` / `en`)
 - `category` — `brunnen`, `denkmal`, or `kunstwerk`
@@ -79,7 +94,35 @@ Each work is defined in `src/content/works/{slug}.json`. Key fields include:
 - `downloadAllowed` — whether GLB/USDZ download is offered on the work page
 - `tour` — optional guided camera tour steps
 
-See [`src/content.config.ts`](src/content.config.ts) for the full schema.
+See [`src/content/work-schema.ts`](src/content/work-schema.ts) for the full schema.
+
+### Publishing content changes
+
+Firestore edits do **not** auto-publish. After updating works:
+
+1. Push to `main`, or
+2. Run the **Deploy to GitHub Pages** workflow manually (`workflow_dispatch`)
+
+### Migration helpers
+
+If you still have local JSON under `src/content/works/`:
+
+```bash
+pnpm works:migrate:dry   # validate + print plan
+pnpm works:migrate       # upsert into Firestore
+pnpm works:verify        # read back / validate remote documents
+```
+
+### GitHub Actions variables for Firestore builds
+
+In addition to the existing `PUBLIC_*` variables, set:
+
+| Variable | Example |
+|---|---|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/717967107645/locations/global/workloadIdentityPools/github-actions/providers/github-oidc` |
+| `GCP_SERVICE_ACCOUNT` | `github-astro-build@open-museum-885a1.iam.gserviceaccount.com` |
+
+These enable keyless Workload Identity Federation so CI/deploy can read Firestore at build time.
 
 ## Gallery Thumbnails (Build-Time Optimization)
 
@@ -90,7 +133,7 @@ Work-page gallery images use generated `.webp` thumbnails for initial render and
 - Auto-run before build: `prebuild` runs the generator automatically
 - Output directory: `public/images/thumbnails/works/`
 
-The generator reads all `photos` arrays from `src/content/works/*.json` (gallery photos only), then:
+The generator reads all `photos` arrays from Firestore works (gallery photos only), then:
 
 - fetches originals from `PUBLIC_ASSETS_BASE_URL` when set (Firebase-compatible URL handling), or
 - reads originals from local `public/` when external storage is not configured.

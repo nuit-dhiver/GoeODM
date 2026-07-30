@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -19,6 +20,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/717967107645/locations/global/workloadIdentityPools/github-actions/providers/github-oidc' }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT || 'github-astro-build@open-museum-885a1.iam.gserviceaccount.com' }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -37,6 +44,9 @@ jobs:
       - name: Build Astro
         run: pnpm build
         env:
+          GOOGLE_CLOUD_PROJECT: open-museum-885a1
+          FIRESTORE_PROJECT_ID: open-museum-885a1
+          FIRESTORE_DATABASE_ID: content
           PUBLIC_ASSETS_BASE_URL: ${{ vars.PUBLIC_ASSETS_BASE_URL }}
           PUBLIC_FIREBASE_API_KEY: ${{ vars.PUBLIC_FIREBASE_API_KEY }}
           PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.PUBLIC_FIREBASE_AUTH_DOMAIN }}

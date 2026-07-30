@@ -10,10 +10,14 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
+    "works:migrate:dry": "node scripts/migrate-works-to-firestore.mjs --dry-run",
+    "works:migrate": "node scripts/migrate-works-to-firestore.mjs",
+    "works:verify": "node scripts/migrate-works-to-firestore.mjs --verify",
     "test:assets:changed": "node scripts/ci/asset-health-check.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.3.0",
+    "@google-cloud/firestore": "^8.7.0",
     "@google/model-viewer": "^4.0.0",
     "astro": "^7.1.0",
     "firebase": "^12.13.0",
