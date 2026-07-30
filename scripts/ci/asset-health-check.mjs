@@ -71,16 +71,6 @@ function parseChangedFiles(diffRange) {
     });
 }
 
-function cityToSlug(value) {
-  return value
-    .toLowerCase()
-    .replace(/ö/g, 'oe')
-    .replace(/ü/g, 'ue')
-    .replace(/ä/g, 'ae')
-    .replace(/ß/g, 'ss')
-    .replace(/\s+/g, '-');
-}
-
 function routeFromPageFile(filePath) {
   if (!filePath.startsWith('src/pages/') || !filePath.endsWith('.astro')) return null;
 
@@ -100,36 +90,6 @@ function routeFromPageFile(filePath) {
   return { route: `/${rel}/`, dynamic: false };
 }
 
-async function loadWorkData(filePath) {
-  try {
-    const abs = path.join(REPO_ROOT, filePath);
-    const content = await fs.readFile(abs, 'utf8');
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
-
-function addCategoryRoutes(routes, category) {
-  const map = {
-    brunnen: ['/brunnen/', '/en/fountains/'],
-    denkmal: ['/denkmale/', '/en/monuments/'],
-    kunstwerk: ['/kunstwerke/', '/en/artworks/'],
-  };
-
-  const categoryRoutes = map[category];
-  if (!categoryRoutes) return;
-
-  for (const route of categoryRoutes) routes.add(route);
-}
-
-function addCityRoutes(routes, city) {
-  if (!city) return;
-  const citySlug = cityToSlug(city);
-  routes.add(`/staedte/${citySlug}/`);
-  routes.add(`/en/cities/${citySlug}/`);
-}
-
 async function getTargetRoutes(changes) {
   const routes = new Set();
   let runAll = false;
@@ -147,7 +107,13 @@ async function getTargetRoutes(changes) {
     const touched = [change.oldPath, change.newPath].filter(Boolean);
 
     for (const filePath of touched) {
-      if (globalAffectingRoots.some((root) => filePath.startsWith(root)) || filePath === 'src/content.config.ts') {
+      if (
+        globalAffectingRoots.some((root) => filePath.startsWith(root)) ||
+        filePath === 'src/content.config.ts' ||
+        filePath === 'src/content/work-schema.ts' ||
+        filePath === 'src/loaders/firestore-works.ts' ||
+        filePath === 'src/lib/firestore-content.ts'
+      ) {
         runAll = true;
         reason = `Global template/shared code changed: ${filePath}`;
       }
@@ -162,16 +128,6 @@ async function getTargetRoutes(changes) {
         } else if (routeData.route) {
           routes.add(routeData.route);
         }
-      }
-
-      if (filePath.startsWith('src/content/works/') && filePath.endsWith('.json')) {
-        const slug = path.basename(filePath, '.json');
-        routes.add(`/werke/${slug}/`);
-        routes.add(`/en/works/${slug}/`);
-
-        const workData = await loadWorkData(filePath);
-        if (workData?.category) addCategoryRoutes(routes, workData.category);
-        if (workData?.city) addCityRoutes(routes, workData.city);
       }
     }
   }

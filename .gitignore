@@ -13,6 +13,10 @@ dist/
 .env
 .env.*
 
+# GitHub Actions / Google ADC credential files
+gha-creds-*.json
+*-application_default_credentials.json
+
 # Large assets (served from external storage in production)
 public/models/
 public/images/works/

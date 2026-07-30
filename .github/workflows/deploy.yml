@@ -21,6 +21,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -38,6 +44,9 @@ jobs:
       - name: Build Astro
         run: pnpm build
         env:
+          GOOGLE_CLOUD_PROJECT: open-museum-885a1
+          FIRESTORE_PROJECT_ID: open-museum-885a1
+          FIRESTORE_DATABASE_ID: content
           PUBLIC_ASSETS_BASE_URL: ${{ vars.PUBLIC_ASSETS_BASE_URL }}
           PUBLIC_FIREBASE_API_KEY: ${{ vars.PUBLIC_FIREBASE_API_KEY }}
           PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ vars.PUBLIC_FIREBASE_AUTH_DOMAIN }}

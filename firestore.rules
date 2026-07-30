@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: works
+    // Document ID: work slug (e.g. berlinstein)
+    // Fields:
+    //   - title: map { de: string, en: string } (required)
+    //   - description: map { de: string, en: string } (required)
+    //   - category: string enum brunnen|denkmal|kunstwerk (required)
+    //   - model: map { glb?: string, usdz?: string } (required)
+    //   - photos: list of string (optional, default [])
+    //   - poster: string (optional)
+    //   - location: map { lat: number, lng: number, address?: string, myMapsEmbedUrl?: string }
+    //   - city, country, artist, modelCreator, year: string (optional)
+    //   - material: map { de: string, en: string } (optional)
+    //   - downloadAllowed: bool (optional, default false)
+    //   - ipStatus: string enum public-domain|freedom-of-panorama|authorized-use
+    //   - tour: list of tour step maps (optional)
+    //
+    // Access model (intentionally simple):
+    //   - Public read: work content is published website data
+    //   - No client writes: there is no in-app editor yet
+    //   - Firebase Console / Admin CLI / server SDK writes use IAM and bypass these rules
+    // ===============================================================
+
+    match /{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
