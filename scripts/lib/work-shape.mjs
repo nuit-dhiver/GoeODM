@@ -144,6 +144,24 @@ function optionalStringErrors(value, label) {
   return [];
 }
 
+/**
+ * Asset paths are bucket-relative — getAssetUrl() in src/utils/assets.ts strips
+ * one leading slash and appends the rest to PUBLIC_ASSETS_BASE_URL, so a value
+ * without the slash resolves to a different object and 404s.
+ */
+function assetPathErrors(value, label, { required = false } = {}) {
+  if (value === undefined || value === null) {
+    return required ? [`${label} is required`] : [];
+  }
+  if (!isNonEmptyString(value)) {
+    return [`${label} must be a non-empty string${required ? '' : ' when present'}`];
+  }
+  if (!value.startsWith('/') && !/^https?:\/\//i.test(value)) {
+    return [`${label} must start with "/" (bucket-relative, e.g. /images/slug-poster.png)`];
+  }
+  return [];
+}
+
 function tourErrors(tour) {
   const errors = [];
 
@@ -207,13 +225,7 @@ export function validateWorkShape(work) {
       errors.push('model.glb is required — a work without a GLB renders an empty viewer');
     }
     for (const key of ['glb', 'usdz']) {
-      const value = data.model[key];
-      if (value === undefined) continue;
-      if (!isNonEmptyString(value)) {
-        errors.push(`model.${key} must be a non-empty string when present`);
-      } else if (!value.startsWith('/') && !/^https?:\/\//i.test(value)) {
-        errors.push(`model.${key} must start with "/" (bucket-relative, e.g. /models/slug.glb)`);
-      }
+      errors.push(...assetPathErrors(data.model[key], `model.${key}`));
     }
   }
 
@@ -221,15 +233,11 @@ export function validateWorkShape(work) {
     errors.push('photos must be an array');
   } else {
     data.photos.forEach((photo, index) => {
-      if (!isNonEmptyString(photo)) {
-        errors.push(`photos[${index}] must be a non-empty string`);
-      } else if (!photo.startsWith('/') && !/^https?:\/\//i.test(photo)) {
-        errors.push(`photos[${index}] must start with "/" (bucket-relative)`);
-      }
+      errors.push(...assetPathErrors(photo, `photos[${index}]`, { required: true }));
     });
   }
 
-  errors.push(...optionalStringErrors(data.poster, 'poster'));
+  errors.push(...assetPathErrors(data.poster, 'poster'));
 
   if (!isPlainObject(data.location)) {
     errors.push('location object with lat and lng is required');

@@ -136,13 +136,24 @@ export async function applyConfig(raw, { persist = true } = {}) {
  * config without applying it — the caller decides.
  */
 export async function findStoredConfig() {
+  let response;
   try {
-    const response = await fetch('./creator.config.json', { cache: 'no-store' });
-    if (response.ok) {
-      return { source: 'file', config: await response.json() };
-    }
+    response = await fetch('./creator.config.json', { cache: 'no-store' });
   } catch {
-    // No local config file, or it is not valid JSON — fall through.
+    // No local config file — fall through to the remembered copy.
+  }
+
+  if (response?.ok) {
+    try {
+      return { source: 'file', config: await response.json() };
+    } catch (error) {
+      // The file exists but is unreadable. Falling back silently would run the
+      // tool against the previous settings and make the user's edit look
+      // inert, so report it instead.
+      const failure = new Error(`creator.config.json is not valid JSON: ${error.message}`);
+      failure.configFileBroken = true;
+      throw failure;
+    }
   }
 
   try {
@@ -227,21 +238,25 @@ export async function slugExists(slug) {
 }
 
 /**
- * Create-only write. Re-checks existence immediately before writing so a
- * document created elsewhere in the meantime is never clobbered.
+ * Create-only write. The read and the write run in one transaction so a
+ * document created between the two can never be clobbered — the transaction
+ * retries or aborts instead. firestore.rules denies `update` as well, so an
+ * overwrite is refused server-side even if this check were bypassed.
  */
 export async function createWork(slug, data) {
   const { firestore } = state.sdk;
   const ref = workDoc(slug);
 
-  const existing = await firestore.getDoc(ref);
-  if (existing.exists()) {
-    throw new Error(
-      `A work with the slug "${slug}" already exists. This tool only creates new works — edit it in the Firebase Console instead.`,
-    );
-  }
+  await firestore.runTransaction(state.db, async (transaction) => {
+    const existing = await transaction.get(ref);
+    if (existing.exists()) {
+      throw new Error(
+        `A work with the slug "${slug}" already exists. This tool only creates new works — edit it in the Firebase Console instead.`,
+      );
+    }
+    transaction.set(ref, data);
+  });
 
-  await firestore.setDoc(ref, data, { merge: false });
   return slug;
 }
 

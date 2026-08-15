@@ -244,6 +244,13 @@ textarea.input-field { resize: vertical; line-height: 1.5; }
   margin-bottom: 0.35rem;
 }
 .form-group-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+.label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.label-row label { margin-bottom: 0; }
 .input-row { display: flex; gap: 0.5rem; }
 .input-row .input-field { flex: 1; }
 

@@ -90,6 +90,13 @@ function showToast(message, isError = false) {
   toastTimer = setTimeout(() => toast.classList.add('hidden'), 2600);
 }
 
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function fileExtension(name) {
   const parts = name.split('.');
   return parts.length > 1 ? parts.pop().toLowerCase() : '';
@@ -320,12 +327,19 @@ async function checkSlugAvailability() {
     return;
   }
 
+  let taken;
   try {
-    state.slugTaken = await slugExists(slug);
+    taken = await slugExists(slug);
   } catch {
     // A failed lookup should not block editing; createWork re-checks anyway.
-    state.slugTaken = false;
+    taken = false;
   }
+
+  // A slow lookup can land after the slug has moved on — that answer is about
+  // a slug the user is no longer editing, so drop it.
+  if (slug !== state.slug) return;
+
+  state.slugTaken = taken;
   updateAll();
 }
 
@@ -432,7 +446,12 @@ async function getMarkdownParser() {
 
   try {
     const module = await import('https://cdn.jsdelivr.net/npm/marked@17.0.2/+esm');
-    markdownParser = (text) => module.marked.parse(text);
+    // This page holds a signed-in admin session, and marked does not sanitize.
+    // Descriptions are often pasted in from elsewhere, so raw HTML in the
+    // source is escaped rather than executed: the preview shows markdown, and
+    // any stray tags show up as visible text instead of running here — or
+    // silently reaching the public site, which renders the same string.
+    markdownParser = (text) => module.marked.parse(escapeHtml(text));
   } catch {
     markdownParser = null;
   }
@@ -473,8 +492,14 @@ function wireMarkdownPreviews() {
 // Assets
 // ==========================================
 
+let photoCounter = 0;
+
 function makeAsset(kind, file) {
-  return { kind, file, path: '', status: 'pending', progress: 0, error: '' };
+  // Photos get a number that is fixed at selection time rather than derived
+  // from their index: renumbering on every removal would overwrite objects
+  // already uploaded under those names and orphan the ones past the end.
+  const ordinal = kind === 'photo' ? (photoCounter += 1) : 0;
+  return { kind, ordinal, file, path: '', status: 'pending', progress: 0, error: '' };
 }
 
 function computeAssetPaths() {
@@ -483,13 +508,17 @@ function computeAssetPaths() {
 
   const { modelPrefix, imagePrefix } = config.storage;
   const assign = (asset, path) => {
-    if (!asset) return;
+    if (!asset || asset.path === path) return;
+
     // Renaming the slug after an upload means the uploaded object no longer
-    // matches the document — send it back to pending.
-    if (asset.status === 'done' && asset.path !== path) {
+    // matches the document — send it back to pending. An upload in flight is
+    // handled at its completion in uploadPendingAssets(), which compares the
+    // path it actually wrote to against this one.
+    if (asset.status === 'done') {
       asset.status = 'pending';
       asset.progress = 0;
     }
+
     asset.path = path;
   };
 
@@ -501,10 +530,10 @@ function computeAssetPaths() {
     assign(state.assets.poster, `${imagePrefix}${state.slug}-poster.${extension}`);
   }
 
-  state.assets.photos.forEach((photo, index) => {
+  for (const photo of state.assets.photos) {
     const extension = fileExtension(photo.file.name) || 'jpg';
-    assign(photo, `${imagePrefix}${state.slug}-${index + 1}.${extension}`);
-  });
+    assign(photo, `${imagePrefix}${state.slug}-${photo.ordinal}.${extension}`);
+  }
 }
 
 function allAssets() {
@@ -520,11 +549,28 @@ function pendingAssets() {
   return allAssets().filter((asset) => asset.status !== 'done');
 }
 
+let lastAssetSignature = null;
+
+function assetListSignature(assets) {
+  return JSON.stringify([
+    state.uploading,
+    assets.map((a) => [a.kind, a.file.name, a.file.size, a.path, a.status, a.progress, a.error]),
+  ]);
+}
+
 function renderAssetList() {
+  const assets = allAssets();
+
+  // updateAll() runs on every keystroke; rebuilding these rows (and their
+  // listeners) when nothing about them changed is pure waste, and it would
+  // also throw away the progress bars mid-upload.
+  const signature = assetListSignature(assets);
+  if (signature === lastAssetSignature) return;
+  lastAssetSignature = signature;
+
   const container = $('asset-list');
   container.innerHTML = '';
 
-  const assets = allAssets();
   if (assets.length === 0) {
     container.innerHTML = '<p class="hint">No files chosen yet.</p>';
     return;
@@ -686,6 +732,9 @@ async function uploadPendingAssets() {
     asset.status = 'uploading';
     asset.progress = 0;
     asset.error = '';
+    // The slug field stays editable during uploads, so remember where this
+    // file is actually being written and re-check it on completion.
+    const targetPath = asset.path;
     setStatus(uploadStatus, `Uploading ${asset.file.name} (${uploaded + 1}/${pending.length})…`);
     renderAssetList();
 
@@ -693,7 +742,7 @@ async function uploadPendingAssets() {
       let lastRendered = 0;
       await uploadAsset({
         file: asset.file,
-        fullPath: asset.path,
+        fullPath: targetPath,
         onProgress: (percent) => {
           asset.progress = percent;
           // Rebuilding the list on every progress event is wasteful for a
@@ -704,9 +753,17 @@ async function uploadPendingAssets() {
           }
         },
       });
-      asset.status = 'done';
-      asset.progress = 100;
-      uploaded += 1;
+      if (asset.path === targetPath) {
+        asset.status = 'done';
+        asset.progress = 100;
+        uploaded += 1;
+      } else {
+        // The slug changed mid-flight: the bytes landed at targetPath, but the
+        // document would reference asset.path. Leave it pending so the write
+        // stays locked until it is re-uploaded under the new name.
+        asset.status = 'pending';
+        asset.progress = 0;
+      }
     } catch (error) {
       asset.status = 'error';
       asset.error = describeError(error);
@@ -718,8 +775,20 @@ async function uploadPendingAssets() {
   }
 
   state.uploading = false;
-  setStatus(uploadStatus, `Uploaded ${uploaded} file${uploaded === 1 ? '' : 's'}.`, 'ok');
-  showToast('Assets uploaded');
+
+  const restaled = pending.length - uploaded;
+  if (restaled > 0) {
+    setStatus(
+      uploadStatus,
+      `Uploaded ${uploaded} file${uploaded === 1 ? '' : 's'}. ${restaled} still pending — ` +
+        'the slug changed while they were uploading, so they need re-uploading under the new name.',
+      'warn',
+    );
+  } else {
+    setStatus(uploadStatus, `Uploaded ${uploaded} file${uploaded === 1 ? '' : 's'}.`, 'ok');
+    showToast('Assets uploaded');
+  }
+
   updateAll();
 }
 
@@ -916,7 +985,9 @@ function wireResultActions() {
     link.href = url;
     link.download = `${state.saved.slug}.json`;
     link.click();
-    URL.revokeObjectURL(url);
+    // Revoking synchronously can invalidate the URL before the browser has
+    // started fetching it, silently cancelling the download.
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
   });
 
   $('btn-new-work').addEventListener('click', () => location.reload());
@@ -994,7 +1065,15 @@ async function boot() {
   wireAssetInputs();
   wireResultActions();
 
-  const loaded = await findStoredConfig();
+  let loaded;
+  try {
+    loaded = await findStoredConfig();
+  } catch (error) {
+    setStatus($('config-status'), `${error.message} — fix the file and reload.`, 'error');
+    setBadge('Bad config', 'error');
+    return;
+  }
+
   if (loaded) {
     await useConfig(loaded.config, loaded.source === 'file' ? 'creator.config.json' : 'this browser');
 

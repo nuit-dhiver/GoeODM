@@ -79,11 +79,15 @@ function resolveRequestPath(requestPath) {
   const withIndex = decoded.endsWith('/') || relative === '' ? `${relative}index.html` : relative;
 
   const absolute = path.resolve(REPO_ROOT, withIndex);
-  const normalizedRelative = path.relative(REPO_ROOT, absolute);
+  const relativeToRoot = path.relative(REPO_ROOT, absolute);
 
-  if (normalizedRelative.startsWith('..') || path.isAbsolute(normalizedRelative)) {
+  if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) {
     return null;
   }
+
+  // path.relative yields backslashes on Windows; the allowlist is POSIX-style.
+  const normalizedRelative = relativeToRoot.split(path.sep).join('/');
+
   if (!ALLOWED_PREFIXES.some((prefix) => `${normalizedRelative}/`.startsWith(prefix))) {
     return null;
   }
@@ -120,6 +124,17 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const stats = await fs.stat(filePath);
+
+    // Serving a directory's index.html at the un-slashed URL would make the
+    // page's relative links resolve one level too high, so redirect instead.
+    if (stats.isDirectory()) {
+      const [pathname, query = ''] = req.url.split('?');
+      if (!pathname.endsWith('/')) {
+        send(res, 301, '', { Location: `${pathname}/${query ? `?${query}` : ''}` });
+        return;
+      }
+    }
+
     const target = stats.isDirectory() ? path.join(filePath, 'index.html') : filePath;
     const content = await fs.readFile(target);
     const contentType = MIME_TYPES[path.extname(target).toLowerCase()] || 'application/octet-stream';
