@@ -13,6 +13,8 @@
     "works:migrate:dry": "node scripts/migrate-works-to-firestore.mjs --dry-run",
     "works:migrate": "node scripts/migrate-works-to-firestore.mjs",
     "works:verify": "node scripts/migrate-works-to-firestore.mjs --verify",
+    "work:create": "node scripts/serve-tools.mjs --open /tools/work-creator/",
+    "tools:serve": "node scripts/serve-tools.mjs",
     "test:assets:changed": "node scripts/ci/asset-health-check.mjs"
   },
   "dependencies": {

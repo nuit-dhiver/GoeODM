@@ -80,7 +80,7 @@ When Firebase is configured, model files can be loaded through authenticated req
 
 Works are stored in Firestore (project `open-museum-885a1`, database `content`, collection `works`). Each document ID is the work slug (for example `berlinstein`). Astro loads the collection **only at build/dev time** via a custom content loader — visitors receive static HTML and never talk to Firestore.
 
-Edit documents in the [Firebase Console](https://console.firebase.google.com/project/open-museum-885a1/firestore/databases/content/data) or via the Firebase/Admin CLI. Security rules allow **public reads** (the work data is public website content) and **deny all client writes**. Console/CLI updates use IAM and are not blocked by those rules. There is no in-app content editor.
+Edit documents in the [Firebase Console](https://console.firebase.google.com/project/open-museum-885a1/firestore/databases/content/data) or via the Firebase/Admin CLI. Security rules allow **public reads** (the work data is public website content) and deny client writes except for the content-admin allowlist in `isContentAdmin()`, which exists so the work creator below can publish new works. Console/CLI updates use IAM and are not blocked by those rules.
 
 Key fields:
 
@@ -95,6 +95,26 @@ Key fields:
 - `tour` — optional guided camera tour steps
 
 See [`src/content/work-schema.ts`](src/content/work-schema.ts) for the full schema.
+
+### Adding a work
+
+```bash
+pnpm work:create
+```
+
+This serves the [work creator](tools/work-creator/) at
+<http://localhost:5174/tools/work-creator/>: a local page that uploads the
+GLB/USDZ/poster/photos to Firebase Storage and writes the `works/<slug>`
+document, validated against the same rules the build enforces. It needs a
+one-time setup (an admin user plus a config file) — see
+[`tools/work-creator/README.md`](tools/work-creator/README.md).
+
+Gallery thumbnails need no action: `prebuild` regenerates missing `.webp` files
+from Storage during the build, so nothing has to be committed for a new work.
+
+Validation is shared between the tool and the CLI in
+[`scripts/lib/work-shape.mjs`](scripts/lib/work-shape.mjs); keep it in sync with
+`src/content/work-schema.ts` when fields change.
 
 ### Publishing content changes
 

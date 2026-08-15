@@ -1,0 +1,29 @@
+{
+  "_comment": "Copy to creator.config.json (gitignored) and fill in. Every firebase.* value below is already public in the built site's HTML — this file is a convenience, not a credential. Never add a service-account key or a GitHub token here.",
+  "firebase": {
+    "apiKey": "AIza...",
+    "authDomain": "open-museum-885a1.firebaseapp.com",
+    "projectId": "open-museum-885a1",
+    "storageBucket": "open-museum-885a1.firebasestorage.app",
+    "appId": "1:000000000000:web:0000000000000000000000"
+  },
+  "firestore": {
+    "databaseId": "content",
+    "collection": "works"
+  },
+  "storage": {
+    "modelPrefix": "models/",
+    "imagePrefix": "images/"
+  },
+  "assetsBaseUrl": "https://firebasestorage.googleapis.com/v0/b/open-museum-885a1.firebasestorage.app/o",
+  "defaults": {
+    "city": "Göttingen",
+    "country": "Germany",
+    "modelCreator": "Alex Emami",
+    "ipStatus": "freedom-of-panorama",
+    "downloadAllowed": false
+  },
+  "deploy": {
+    "workflowUrl": "https://github.com/OWNER/REPO/actions/workflows/deploy.yml"
+  }
+}

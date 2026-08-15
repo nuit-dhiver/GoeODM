@@ -17,6 +17,14 @@ dist/
 gha-creds-*.json
 *-application_default_credentials.json
 
+# Work creator config (project-specific; copy from creator.config.example.json)
+tools/work-creator/creator.config.json
+
+# Firebase emulator / CLI debug output
+firestore-debug.log
+firebase-debug.log
+ui-debug.log
+
 # Large assets (served from external storage in production)
 public/models/
 public/images/works/
