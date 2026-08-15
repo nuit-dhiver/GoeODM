@@ -1,0 +1,49 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // ===============================================================
+    // Access model
+    // ===============================================================
+    //
+    //   - models/**: read requires a signed-in session (including the
+    //     anonymous one the site creates), so the GLB/USDZ files are not
+    //     trivially scrapeable. scripts/ci/asset-health-check.mjs relies on
+    //     this: it treats a 401/403 on a model as proof the asset exists and
+    //     is protected.
+    //   - images/**: public read. The thumbnail generator fetches originals
+    //     unauthenticated during prebuild, and <img> tags load them directly.
+    //   - Writes: only the content admins below, via tools/work-creator.
+    //   - Anything outside these two prefixes: no client access at all.
+    //
+    // Console / gsutil / server SDK access uses IAM and bypasses these rules.
+    // ===============================================================
+
+    // Same allowlist as isContentAdmin() in firestore.rules — keep them in
+    // sync. The provider check keeps the site's anonymous sessions out: they
+    // can read models, never write.
+    function isContentAdmin() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && request.auth.uid in [
+          'Eh7OtGAojyNZjM5vHuSgVLvHgGw2'
+        ];
+    }
+
+    // Deletes stay denied everywhere: removing an object that a published
+    // document still points at breaks the work page and fails the next
+    // asset health check. Delete from the Console when a work is retired.
+    match /models/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow create, update: if isContentAdmin()
+        && request.resource.size < 250 * 1024 * 1024
+        && request.resource.contentType.matches('model/.*');
+    }
+
+    match /images/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isContentAdmin()
+        && request.resource.size < 30 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}
