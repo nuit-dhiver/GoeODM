@@ -73,8 +73,8 @@ const visualArtworkSchema = {
   name: title,
   ...(data.artist && { creator: { '@type': 'Person', name: data.artist } }),
   ...(data.year && { dateCreated: data.year }),
-  ...(data.material && { artMedium: material }),
-  ...(description && { description: description }),
+  ...(material && { artMedium: material }),
+  description,
   ...(data.poster && { image: `${siteUrl}${getAssetUrl(data.poster)}` }),
   ...(data.location.address && {
     locationCreated: {
@@ -306,7 +306,7 @@ const breadcrumbSchema = {
                 <dd class="mt-0.5">{data.year}</dd>
               </div>
             )}
-            {data.material && (
+            {material && (
               <div>
                 <dt class="font-semibold uppercase tracking-wider text-black/50">{t('work.material')}</dt>
                 <dd class="mt-0.5">{material}</dd>

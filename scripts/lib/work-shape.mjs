@@ -26,6 +26,14 @@ export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const LOCALE_PATTERN = /^[a-z]{2}(?:-[A-Z]{2})?$/;
 
 /**
+ * Locales the site builds routes for, mirroring astro.config.mjs and
+ * src/i18n/ui.ts. A work published only outside this list validates as
+ * well-formed but would render nowhere, so it is rejected.
+ * Adding a locale here means adding src/pages/<code>/ too.
+ */
+export const SITE_LOCALES = ['de', 'en'];
+
+/**
  * Convert a title to a slug. Mirrors `cityNameToSlug` in src/i18n/ui.ts
  * (German transliteration) with extra cleanup for punctuation.
  */
@@ -306,16 +314,57 @@ export function validateWorkShape(work) {
   // A page needs a title and a description in the same locale. Having a German
   // title and only an English description produces a work that renders nowhere.
   if (isPlainObject(data.title) && isPlainObject(data.description)) {
-    if (workLocales(data).length === 0) {
+    const locales = workLocales(data);
+
+    if (locales.length === 0) {
       errors.push(
         'title and description must share at least one locale — ' +
           `title has [${Object.keys(data.title).join(', ')}], ` +
           `description has [${Object.keys(data.description).join(', ')}]`,
       );
+    } else {
+      const servable = locales.filter((locale) => SITE_LOCALES.includes(locale));
+      if (servable.length === 0) {
+        errors.push(
+          `no locale the site publishes: has [${locales.join(', ')}], ` +
+            `site builds [${SITE_LOCALES.join(', ')}] — this work would render nowhere`,
+        );
+      }
+
+      // Text attached to a locale the work is not published in never renders.
+      errors.push(...surplusLocaleErrors(data.material, 'material', locales));
+      (Array.isArray(data.tour) ? data.tour : []).forEach((step, index) => {
+        if (!isPlainObject(step)) return;
+        errors.push(...surplusLocaleErrors(step.text, `tour[${index}].text`, locales));
+        errors.push(...surplusLocaleErrors(step.audio, `tour[${index}].audio`, locales));
+
+        // The tour player falls back when a step lacks the page's locale, but a
+        // missing caption is worth catching while it can still be written.
+        const missing = locales.filter((locale) => !isNonEmptyString(step.text?.[locale]));
+        if (isPlainObject(step.text) && missing.length > 0) {
+          errors.push(`tour[${index}].text is missing [${missing.join(', ')}]`);
+        }
+      });
     }
   }
 
   return errors;
+}
+
+/**
+ * Flag localized entries for locales the work is not published in — they are
+ * written to Firestore, never rendered, and drift silently.
+ */
+function surplusLocaleErrors(field, label, publishedLocales) {
+  if (!isPlainObject(field)) return [];
+
+  const surplus = Object.keys(field).filter((locale) => !publishedLocales.includes(locale));
+  if (surplus.length === 0) return [];
+
+  return [
+    `${label} has [${surplus.join(', ')}] but the work is not published in ` +
+      `${surplus.length === 1 ? 'that locale' : 'those locales'} (published: [${publishedLocales.join(', ')}])`,
+  ];
 }
 
 /**

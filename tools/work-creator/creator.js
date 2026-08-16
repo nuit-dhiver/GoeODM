@@ -390,17 +390,24 @@ function renderLocaleFields() {
   wireMarkdownPreviews();
 }
 
-function renderFieldGroup(container, codes, { prefix, label, required, multiline = false }) {
-  const existing = new Map(
-    [...container.children].map((child) => [child.dataset.locale, child]),
-  );
+/**
+ * Detached field groups, kept so that unticking a language and reinstating it
+ * does not throw away what was typed in it.
+ */
+const retiredFieldGroups = new Map();
 
-  container.innerHTML = '';
+function renderFieldGroup(container, codes, { prefix, label, required, multiline = false }) {
+  for (const child of [...container.children]) {
+    retiredFieldGroups.set(`${prefix}-${child.dataset.locale}`, child);
+    container.removeChild(child);
+  }
 
   for (const code of codes) {
-    // Reuse the existing node so typed text survives a locale being toggled.
-    const kept = existing.get(code);
+    // Reuse the node — live or previously retired — so typed text survives a
+    // locale being toggled off and on again.
+    const kept = retiredFieldGroups.get(`${prefix}-${code}`);
     if (kept) {
+      retiredFieldGroups.delete(`${prefix}-${code}`);
       container.appendChild(kept);
       continue;
     }
@@ -424,6 +431,9 @@ function renderFieldGroup(container, codes, { prefix, label, required, multiline
     field.id = id;
     field.className = 'input-field';
     field.dataset.field = '';
+    // Wired here rather than by wireFormFields, which runs once and would miss
+    // fields generated later; the flag keeps it from binding these twice.
+    field.dataset.wired = 'true';
     field.addEventListener('input', updateAll);
 
     if (multiline) {
@@ -616,6 +626,12 @@ async function getMarkdownParser() {
 
 function wireMarkdownPreviews() {
   for (const button of document.querySelectorAll('.preview-toggle')) {
+    // Locale fields are re-rendered on every toggle and reuse their nodes, so
+    // binding unconditionally would stack listeners and make one click both
+    // open and close the preview.
+    if (button.dataset.wired === 'true') continue;
+    button.dataset.wired = 'true';
+
     button.addEventListener('click', async () => {
       const sourceId = button.dataset.previewFor;
       const preview = document.querySelector(`[data-preview-of="${sourceId}"]`);
@@ -1219,6 +1235,9 @@ function updateAll() {
 
 function wireFormFields() {
   for (const field of document.querySelectorAll('[data-field]')) {
+    // Generated locale fields wire themselves as they are created.
+    if (field.dataset.wired === 'true') continue;
+    field.dataset.wired = 'true';
     field.addEventListener('input', updateAll);
     field.addEventListener('change', updateAll);
   }

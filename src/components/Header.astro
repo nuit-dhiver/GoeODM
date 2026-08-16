@@ -14,6 +14,11 @@ const t = useTranslations(lang);
 const base = import.meta.env.BASE_URL;
 const homePath = `${base}${lang}/`;
 
+// The switcher hides itself when the other language does not exist; the
+// wrappers below carry borders, so they have to disappear with it.
+const otherLang: Lang = lang === 'de' ? 'en' : 'de';
+const showLanguageSwitcher = !availableLocales || availableLocales.includes(otherLang);
+
 const allWorks = await getCollection('works');
 // Only link cities that have a page in this locale — a city whose works are
 // all in another language has no page here to navigate to.
@@ -82,9 +87,11 @@ const cityNames = [
           </div>
         </div>
 
-        <div class="ml-4 border-l border-white/30 pl-4">
-          <LanguageSwitcher lang={lang} availableLocales={availableLocales} />
-        </div>
+        {showLanguageSwitcher && (
+          <div class="ml-4 border-l border-white/30 pl-4">
+            <LanguageSwitcher lang={lang} availableLocales={availableLocales} />
+          </div>
+        )}
       </div>
 
       <!-- Mobile menu button -->
@@ -139,9 +146,11 @@ const cityNames = [
             </a>
           ))}
         </div>
-        <div class="mt-2 pt-2 border-t border-white/20">
-          <LanguageSwitcher lang={lang} availableLocales={availableLocales} />
-        </div>
+        {showLanguageSwitcher && (
+          <div class="mt-2 pt-2 border-t border-white/20">
+            <LanguageSwitcher lang={lang} availableLocales={availableLocales} />
+          </div>
+        )}
       </div>
     </div>
   </nav>

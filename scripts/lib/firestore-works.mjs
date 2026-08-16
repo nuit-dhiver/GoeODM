@@ -8,6 +8,7 @@ export {
   RESERVED_SLUGS,
   SLUG_PATTERN,
   LOCALE_PATTERN,
+  SITE_LOCALES,
   slugify,
   validateSlug,
   normalizeWorkRecord,
