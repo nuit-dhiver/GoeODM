@@ -307,7 +307,8 @@ let slugCheckTimer = null;
 
 function deriveSlug() {
   if (state.slugEdited) return;
-  const derived = slugify(trimmedValue('title-de') || trimmedValue('title-en'));
+  const { de, en } = buildTitle();
+  const derived = slugify(de || en);
   $('field-slug').value = derived;
   state.slug = derived;
 }
@@ -811,11 +812,24 @@ function posterPath() {
   return storedPath(state.assets.poster);
 }
 
+/**
+ * Most works read the same in both languages (proper nouns, mostly), so one
+ * title is used for every language unless the author says otherwise.
+ */
+function buildTitle() {
+  if ($('title-per-language').checked) {
+    return { de: trimmedValue('title-de'), en: trimmedValue('title-en') };
+  }
+
+  const universal = trimmedValue('title-universal');
+  return { de: universal, en: universal };
+}
+
 function buildWorkData() {
   const data = {
-    title: { de: trimmedValue('title-de'), en: trimmedValue('title-en') },
+    title: buildTitle(),
     description: { de: trimmedValue('desc-de'), en: trimmedValue('desc-en') },
-    category: document.querySelector('input[name="category"]:checked')?.value ?? '',
+    category: $('field-category').value,
     model: {},
     photos: photoPaths(),
     location: {},
@@ -1048,12 +1062,31 @@ function wireFormFields() {
     scheduleSlugCheck();
   });
 
-  for (const id of ['title-de', 'title-en']) {
+  for (const id of ['title-universal', 'title-de', 'title-en']) {
     $(id).addEventListener('input', () => {
       state.slugTaken = false;
       scheduleSlugCheck();
     });
   }
+
+  $('title-per-language').addEventListener('change', (event) => {
+    const perLanguage = event.target.checked;
+    $('title-language-fields').classList.toggle('hidden', !perLanguage);
+
+    // Carry the universal title across so switching modes never blanks the
+    // field the author was just looking at.
+    if (perLanguage) {
+      const universal = trimmedValue('title-universal');
+      if (universal && !trimmedValue('title-de')) $('title-de').value = universal;
+      if (universal && !trimmedValue('title-en')) $('title-en').value = universal;
+    } else if (!trimmedValue('title-universal')) {
+      $('title-universal').value = trimmedValue('title-de') || trimmedValue('title-en');
+    }
+
+    state.slugTaken = false;
+    updateAll();
+    scheduleSlugCheck();
+  });
 }
 
 async function boot() {

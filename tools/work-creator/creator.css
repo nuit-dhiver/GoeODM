@@ -264,21 +264,15 @@ textarea.input-field { resize: vertical; line-height: 1.5; }
   margin-top: 0.35rem;
 }
 
-.radio-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-.radio-option, .checkbox-option {
+.checkbox-option {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  border: 2px solid var(--color-gray);
-  padding: 0.5rem 0.75rem;
   text-transform: none;
   font-size: 0.9rem;
+  margin-top: 0.5rem;
 }
-.radio-option span { display: flex; flex-direction: column; }
-.radio-option small { color: var(--color-muted); font-family: monospace; font-size: 0.7rem; }
-.radio-option:has(input:checked) { border-color: var(--color-gold); }
-.checkbox-option { border: none; padding: 0; margin-top: 0.5rem; }
 
 .markdown-preview {
   border: 2px solid var(--color-gray);

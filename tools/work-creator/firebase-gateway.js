@@ -105,6 +105,12 @@ export async function applyConfig(raw, { persist = true } = {}) {
     throw error;
   }
 
+  // A key pasted from a console often carries a trailing space or newline,
+  // which Identity Toolkit rejects as an invalid key with no hint as to why.
+  for (const [key, value] of Object.entries(raw.firebase)) {
+    if (typeof value === 'string') raw.firebase[key] = value.trim();
+  }
+
   const { app, auth, firestore, storage } = await loadSdk();
 
   // Attaching a second config must not silently keep talking to the first
@@ -344,6 +350,10 @@ export function describeError(error) {
   const code = error?.code ?? '';
 
   const messages = {
+    'auth/api-key-not-valid.-please-pass-a-valid-api-key.':
+      'Identity Toolkit rejected the API key. Most often the config in use is not the one you edited — check the source line under "Attach config", and compare firebase.apiKey against Firebase Console → Project settings → General → Web API Key (a truncated paste looks exactly like this). If the key is definitely right, check its restrictions in Google Cloud Console → Credentials: website restrictions must permit http://localhost, and API restrictions must allow "Identity Toolkit API" and "Token Service API".',
+    'auth/api-key-not-valid': 'Identity Toolkit rejected the API key — see the API restrictions on the key in Google Cloud Console.',
+    'auth/invalid-api-key': 'Identity Toolkit rejected the API key — see the API restrictions on the key in Google Cloud Console.',
     'auth/invalid-credential': 'Wrong email or password.',
     'auth/invalid-email': 'That is not a valid email address.',
     'auth/user-not-found': 'No admin user with that email.',

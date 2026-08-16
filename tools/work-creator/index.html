@@ -85,7 +85,17 @@
       <section class="form-section brutal-card">
         <h2>Content</h2>
 
-        <div class="form-group-row">
+        <div class="form-group">
+          <label for="title-universal">Title <span class="required">required</span></label>
+          <input type="text" id="title-universal" class="input-field" data-field
+            placeholder="Used for every language">
+          <label class="checkbox-option">
+            <input type="checkbox" id="title-per-language">
+            <span>This title differs by language</span>
+          </label>
+        </div>
+
+        <div class="form-group-row hidden" id="title-language-fields">
           <div class="form-group">
             <label for="title-de">Title (DE) <span class="required">required</span></label>
             <input type="text" id="title-de" class="input-field" data-field>
@@ -121,21 +131,13 @@
         <h2>Metadata</h2>
 
         <div class="form-group">
-          <label>Category <span class="required">required</span></label>
-          <div class="radio-row">
-            <label class="radio-option">
-              <input type="radio" name="category" value="brunnen" data-field>
-              <span>Brunnen<small>/fountains/</small></span>
-            </label>
-            <label class="radio-option">
-              <input type="radio" name="category" value="denkmal" data-field>
-              <span>Denkmal<small>/monuments/</small></span>
-            </label>
-            <label class="radio-option">
-              <input type="radio" name="category" value="kunstwerk" data-field>
-              <span>Kunstwerk<small>/artworks/</small></span>
-            </label>
-          </div>
+          <label for="field-category">Category <span class="required">required</span></label>
+          <select id="field-category" class="input-field" data-field>
+            <option value="">Choose a category…</option>
+            <option value="brunnen">Brunnen — fountain (/fountains/)</option>
+            <option value="denkmal">Denkmal — monument (/monuments/)</option>
+            <option value="kunstwerk">Kunstwerk — artwork (/artworks/)</option>
+          </select>
         </div>
 
         <div class="form-group-row">
