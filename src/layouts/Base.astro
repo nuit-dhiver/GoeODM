@@ -1,7 +1,7 @@
 ---
 import Header from '@/components/Header.astro';
 import Footer from '@/components/Footer.astro';
-import { getLangFromUrl, useTranslations, getAlternateLanguagePath } from '@/i18n/ui';
+import { getLangFromUrl, useTranslations, getAlternateLanguagePath, languages } from '@/i18n/ui';
 import '@/styles/global.css';
 import { getAssetUrl } from '@/utils/assets';
 
@@ -9,9 +9,15 @@ interface Props {
   title: string;
   description?: string;
   ogImage?: string;
+  /**
+   * Locales this particular page exists in. Work pages pass the locales the
+   * work is published in, so hreflang never points at a page that was not
+   * generated. Everything else exists in every locale.
+   */
+  availableLocales?: string[];
 }
 
-const { title, description = '', ogImage } = Astro.props;
+const { title, description = '', ogImage, availableLocales } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
@@ -19,9 +25,31 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 const alternatePath = getAlternateLanguagePath(Astro.url.pathname, lang);
 const alternateURL = new URL(alternatePath, Astro.site);
 const isRootPath = Astro.url.pathname === import.meta.env.BASE_URL;
-const deURL = isRootPath ? new URL(`${import.meta.env.BASE_URL}de/`, Astro.site) : (lang === 'de' ? canonicalURL : alternateURL);
-const enURL = isRootPath ? new URL(`${import.meta.env.BASE_URL}en/`, Astro.site) : (lang === 'en' ? canonicalURL : alternateURL);
-const xDefaultURL = new URL(import.meta.env.BASE_URL, Astro.site);
+
+// Advertise a translation only when it was actually built. A work published in
+// one language has no counterpart to point at, and claiming otherwise sends
+// crawlers to a 404.
+const localesToAdvertise = (availableLocales ?? Object.keys(languages)).filter((code) =>
+  Object.hasOwn(languages, code),
+);
+
+// NOTE: getAlternateLanguagePath swaps between exactly two locales. Adding a
+// third means generalizing it to take a target locale; this loop is ready for
+// that, the helper is not.
+const alternateLinks = localesToAdvertise.map((code) => ({
+  code,
+  href: isRootPath
+    ? new URL(`${import.meta.env.BASE_URL}${code}/`, Astro.site)
+    : code === lang
+      ? canonicalURL
+      : alternateURL,
+}));
+
+// x-default is the fallback for languages that match none of the above, so it
+// should always exist. When a page has only one locale, that page is the
+// fallback; otherwise the site root, which language-routes the visitor.
+const xDefaultURL =
+  alternateLinks.length > 1 ? new URL(import.meta.env.BASE_URL, Astro.site) : canonicalURL;
 
 // Strip markdown syntax and truncate for social meta descriptions
 const plainDescription = description
@@ -51,8 +79,9 @@ const resolvedOgImage = ogImage
     <link rel="canonical" href={canonicalURL} />
 
     <!-- hreflang -->
-    <link rel="alternate" hreflang="de" href={deURL} />
-    <link rel="alternate" hreflang="en" href={enURL} />
+    {alternateLinks.map(({ code, href }) => (
+      <link rel="alternate" hreflang={code} href={href} />
+    ))}
     <link rel="alternate" hreflang="x-default" href={xDefaultURL} />
 
     <!-- Open Graph -->
@@ -102,7 +131,7 @@ const resolvedOgImage = ogImage
     <slot name="head" />
   </head>
   <body class="min-h-screen flex flex-col">
-    <Header lang={lang} />
+    <Header lang={lang} availableLocales={availableLocales} />
     <main class="flex-1">
       <slot />
     </main>

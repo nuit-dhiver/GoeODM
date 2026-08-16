@@ -2,10 +2,14 @@
 import StaticRedirect from '@/components/StaticRedirect.astro';
 import { getCollection } from 'astro:content';
 import { getLegacyWorkRedirect } from '@/data/legacy-url-redirects';
+import { hasLocale } from '@/utils/locales';
 
 export async function getStaticPaths() {
   const works = await getCollection('works');
-  return works.map((work) => ({
+  return works
+    // Without the German page to land on, this stub would redirect to a 404.
+    .filter((work) => hasLocale(work.data, 'de'))
+    .map((work) => ({
     params: { slug: work.id },
     props: { to: getLegacyWorkRedirect('de', work.id) },
   }));

@@ -6,6 +6,7 @@ import { useTranslations, getCategoryPath, getWorkPath, type Lang } from '@/i18n
 import { marked } from 'marked';
 import { getAssetUrl } from '@/utils/assets';
 import { getPublicUrl, getWorkPhotoThumbnailPath } from '@/utils/photo-thumbnails';
+import { localized, localizedOptional, workLocales } from '@/utils/locales';
 
 interface Props {
   work: any;
@@ -38,8 +39,17 @@ const ipStatusBodyKey = isPublicDomain
     : 'work.ipStatus.authorizedUse.body';
 
 const categoryKey = `category.${category}` as const;
-const descriptionHtml = await marked.parse(data.description[lang]);
-const shareDescription = data.description[lang].replace(/[#*_`>\n]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+
+// Resolved once. The route only generates this page for locales the work is
+// published in, so these are guaranteed present; `material` is optional and
+// may legitimately be missing in this locale.
+const title = localized(data.title, lang, `title of "${work.id}"`);
+const description = localized(data.description, lang, `description of "${work.id}"`);
+const material = localizedOptional(data.material, lang);
+const availableLocales = workLocales(data);
+
+const descriptionHtml = await marked.parse(description);
+const shareDescription = description.replace(/[#*_`>\n]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
 
 const siteUrl = Astro.site?.href.replace(/\/$/, '') ?? '';
 const homePath = `${import.meta.env.BASE_URL}${lang}/`;
@@ -60,11 +70,11 @@ const galleryPhotos: GalleryPhoto[] = data.photos.map((photo: string) => ({
 const visualArtworkSchema = {
   '@context': 'https://schema.org',
   '@type': 'VisualArtwork',
-  name: data.title[lang],
+  name: title,
   ...(data.artist && { creator: { '@type': 'Person', name: data.artist } }),
   ...(data.year && { dateCreated: data.year }),
-  ...(data.material && { artMedium: data.material[lang] }),
-  ...(data.description[lang] && { description: data.description[lang] }),
+  ...(material && { artMedium: material }),
+  description,
   ...(data.poster && { image: `${siteUrl}${getAssetUrl(data.poster)}` }),
   ...(data.location.address && {
     locationCreated: {
@@ -82,12 +92,12 @@ const breadcrumbSchema = {
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: t('nav.home'), item: `${siteUrl}${homePath}` },
     { '@type': 'ListItem', position: 2, name: t(categoryKey), item: categoryUrl },
-    { '@type': 'ListItem', position: 3, name: data.title[lang] },
+    { '@type': 'ListItem', position: 3, name: title },
   ],
 };
 ---
 
-<Base title={`${data.title[lang]} — Open Museum`} description={data.description[lang]} ogImage={data.poster ? getAssetUrl(data.poster) : undefined}>
+<Base title={`${title} — Open Museum`} description={description} ogImage={data.poster ? getAssetUrl(data.poster) : undefined} availableLocales={availableLocales}>
   <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(visualArtworkSchema)} />
   <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   <div class="bg-off-white border-b-brutal border-black">
@@ -99,7 +109,7 @@ const breadcrumbSchema = {
           {t(categoryKey)}
         </a>
         <span class="text-black/30">→</span>
-        <span class="text-black/50">{data.title[lang]}</span>
+        <span class="text-black/50">{title}</span>
       </nav>
     </div>
   </div>
@@ -107,7 +117,7 @@ const breadcrumbSchema = {
   <section class="bg-black text-white py-8 sm:py-12 border-b-brutal border-brand-gold">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <h1 class="font-heading text-3xl sm:text-5xl font-bold uppercase tracking-wider">
-        {data.title[lang]}
+        {title}
       </h1>
       {data.artist && (
         <p class="mt-2 text-white/60 text-lg">
@@ -129,7 +139,7 @@ const breadcrumbSchema = {
               <ModelViewer
                 src={getAssetUrl(data.model.glb)}
                 iosSrc={data.model.usdz ? getAssetUrl(data.model.usdz) : undefined}
-                alt={data.title[lang]}
+                alt={title}
                 poster={data.poster ? getAssetUrl(data.poster) : undefined}
                 class="h-full"
                 tour={data.tour}
@@ -148,7 +158,7 @@ const breadcrumbSchema = {
               </button>
               <p class="ip-status-meta-text">{t('work.ipStatus.moreInfo')}</p>
             </div>
-            <div class="mt-4 flex flex-col sm:flex-row gap-3 sm:items-stretch" id="social-share" data-share-url={workUrl} data-share-title={data.title[lang]} data-share-description={shareDescription} data-share-copied-message={t('work.shareCopied')}>
+            <div class="mt-4 flex flex-col sm:flex-row gap-3 sm:items-stretch" id="social-share" data-share-url={workUrl} data-share-title={title} data-share-description={shareDescription} data-share-copied-message={t('work.shareCopied')}>
               {canDownload && (
                 <button id="download-btn" class="brutal-btn brutal-btn-black flex-1 justify-center">
                   {t('work.download')}
@@ -179,7 +189,7 @@ const breadcrumbSchema = {
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {galleryPhotos.map((photo) => (
                 <div class="brutal-card overflow-hidden aspect-square">
-                  <img src={photo.thumbUrl} alt={data.title[lang]} class="w-full h-full object-cover cursor-pointer photo-gallery-thumb" data-full={photo.fullUrl} loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.full||'';" />
+                  <img src={photo.thumbUrl} alt={title} class="w-full h-full object-cover cursor-pointer photo-gallery-thumb" data-full={photo.fullUrl} loading="lazy" decoding="async" onerror="this.onerror=null;this.src=this.dataset.full||'';" />
                 </div>
               ))}
             </div>
@@ -296,10 +306,10 @@ const breadcrumbSchema = {
                 <dd class="mt-0.5">{data.year}</dd>
               </div>
             )}
-            {data.material && (
+            {material && (
               <div>
                 <dt class="font-semibold uppercase tracking-wider text-black/50">{t('work.material')}</dt>
-                <dd class="mt-0.5">{data.material[lang]}</dd>
+                <dd class="mt-0.5">{material}</dd>
               </div>
             )}
             {data.location.address && (

@@ -8,15 +8,15 @@ service cloud.firestore {
     // Collection: works
     // Document ID: work slug (e.g. berlinstein)
     // Fields:
-    //   - title: map { de: string, en: string } (required)
-    //   - description: map { de: string, en: string } (required)
+    //   - title: map of locale -> string, e.g. { de, en } (at least one)
+    //   - description: map of locale -> string (at least one, sharing a locale with title)
     //   - category: string enum brunnen|denkmal|kunstwerk (required)
     //   - model: map { glb?: string, usdz?: string } (required)
     //   - photos: list of string (optional, default [])
     //   - poster: string (optional)
     //   - location: map { lat: number, lng: number, address?: string, myMapsEmbedUrl?: string }
     //   - city, country, artist, modelCreator, year: string (optional)
-    //   - material: map { de: string, en: string } (optional)
+    //   - material: map of locale -> string (optional)
     //   - downloadAllowed: bool (optional, default false)
     //   - ipStatus: string enum public-domain|freedom-of-panorama|authorized-use
     //   - tour: list of tour step maps (optional)
@@ -48,11 +48,16 @@ service cloud.firestore {
         ];
     }
 
-    function isBilingual(value) {
-      return value is map
-        && value.keys().hasAll(['de', 'en'])
-        && value.de is string && value.de.size() > 0
-        && value.en is string && value.en.size() > 0;
+    // Localized text: a map of locale code to string, e.g. { de: "…" } or
+    // { de: "…", en: "…" }. No locale is required and none is privileged — a
+    // work may be published in one language only, or in a locale added later.
+    //
+    // Rules cannot iterate map values, so this checks only that the map is
+    // non-empty. That the values are strings, and that title and description
+    // share a locale, is enforced by scripts/lib/work-shape.mjs in the creator
+    // and by the zod schema at build time.
+    function isLocalized(value) {
+      return value is map && value.keys().size() > 0;
     }
 
     function isValidWork(data) {
@@ -65,8 +70,8 @@ service cloud.firestore {
           'location', 'city', 'country', 'artist', 'modelCreator', 'year',
           'material', 'downloadAllowed', 'ipStatus', 'tour'
         ])
-        && isBilingual(data.title)
-        && isBilingual(data.description)
+        && isLocalized(data.title)
+        && isLocalized(data.description)
         && data.category in ['brunnen', 'denkmal', 'kunstwerk']
         && data.model is map
         && data.model.keys().hasOnly(['glb', 'usdz'])
@@ -82,7 +87,7 @@ service cloud.firestore {
         && data.ipStatus in ['public-domain', 'freedom-of-panorama', 'authorized-use']
         && (!('year' in data) || data.year is string)
         && (!('poster' in data) || data.poster is string)
-        && (!('material' in data) || isBilingual(data.material))
+        && (!('material' in data) || isLocalized(data.material))
         && (!('tour' in data) || data.tour is list);
     }
 

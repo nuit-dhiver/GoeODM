@@ -22,6 +22,17 @@ export const RESERVED_SLUGS = ['about', 'artworks', 'cities', 'fountains', 'monu
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** Locale keys: "de", "en", or a regional form like "pt-BR". */
+export const LOCALE_PATTERN = /^[a-z]{2}(?:-[A-Z]{2})?$/;
+
+/**
+ * Locales the site builds routes for, mirroring astro.config.mjs and
+ * src/i18n/ui.ts. A work published only outside this list validates as
+ * well-formed but would render nowhere, so it is rejected.
+ * Adding a locale here means adding src/pages/<code>/ too.
+ */
+export const SITE_LOCALES = ['de', 'en'];
+
 /**
  * Convert a title to a slug. Mirrors `cityNameToSlug` in src/i18n/ui.ts
  * (German transliteration) with extra cleanup for punctuation.
@@ -116,22 +127,36 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function bilingualErrors(value, label, { required }) {
+/**
+ * Localized text is a map of locale code to string. No locale is required and
+ * none is privileged — a work may be published in one language only, or in a
+ * locale added later — but an empty map means the field has no content at all.
+ */
+function localizedErrors(value, label, { required }) {
   const errors = [];
 
   if (value === undefined || value === null) {
-    if (required) errors.push(`${label}.de and ${label}.en are required`);
+    if (required) errors.push(`${label} is required in at least one locale`);
     return errors;
   }
 
   if (!isPlainObject(value)) {
-    errors.push(`${label} must be an object with de and en`);
+    errors.push(`${label} must be an object keyed by locale, e.g. { "de": "…" }`);
     return errors;
   }
 
-  for (const lang of ['de', 'en']) {
-    if (!isNonEmptyString(value[lang])) {
-      errors.push(`${label}.${lang} is required (the site reads ${label}[lang] with no fallback)`);
+  const locales = Object.keys(value);
+  if (locales.length === 0) {
+    errors.push(`${label} needs at least one locale`);
+    return errors;
+  }
+
+  for (const locale of locales) {
+    if (!LOCALE_PATTERN.test(locale)) {
+      errors.push(`${label} has an invalid locale key "${locale}" (expected e.g. "de", "en", "fr")`);
+    }
+    if (!isNonEmptyString(value[locale])) {
+      errors.push(`${label}.${locale} must be a non-empty string`);
     }
   }
 
@@ -181,10 +206,10 @@ function tourErrors(tour) {
     }
     errors.push(...optionalStringErrors(step.cameraTarget, `${label}.cameraTarget`));
     errors.push(...optionalStringErrors(step.fieldOfView, `${label}.fieldOfView`));
-    errors.push(...bilingualErrors(step.text, `${label}.text`, { required: true }));
+    errors.push(...localizedErrors(step.text, `${label}.text`, { required: true }));
 
     if (step.audio !== undefined) {
-      errors.push(...bilingualErrors(step.audio, `${label}.audio`, { required: true }));
+      errors.push(...localizedErrors(step.audio, `${label}.audio`, { required: true }));
     }
     if (step.durationMs !== undefined && typeof step.durationMs !== 'number') {
       errors.push(`${label}.durationMs must be a number`);
@@ -211,8 +236,8 @@ export function validateWorkShape(work) {
     return errors;
   }
 
-  errors.push(...bilingualErrors(data.title, 'title', { required: true }));
-  errors.push(...bilingualErrors(data.description, 'description', { required: true }));
+  errors.push(...localizedErrors(data.title, 'title', { required: true }));
+  errors.push(...localizedErrors(data.description, 'description', { required: true }));
 
   if (!WORK_CATEGORIES.includes(data.category)) {
     errors.push(`category must be one of ${WORK_CATEGORIES.join(' | ')}`);
@@ -273,7 +298,7 @@ export function validateWorkShape(work) {
   }
 
   if (data.material !== undefined && data.material !== null) {
-    errors.push(...bilingualErrors(data.material, 'material', { required: true }));
+    errors.push(...localizedErrors(data.material, 'material', { required: true }));
   }
 
   if (typeof data.downloadAllowed !== 'boolean') {
@@ -286,7 +311,74 @@ export function validateWorkShape(work) {
 
   errors.push(...tourErrors(data.tour));
 
+  // A page needs a title and a description in the same locale. Having a German
+  // title and only an English description produces a work that renders nowhere.
+  if (isPlainObject(data.title) && isPlainObject(data.description)) {
+    const locales = workLocales(data);
+
+    if (locales.length === 0) {
+      errors.push(
+        'title and description must share at least one locale — ' +
+          `title has [${Object.keys(data.title).join(', ')}], ` +
+          `description has [${Object.keys(data.description).join(', ')}]`,
+      );
+    } else {
+      const servable = locales.filter((locale) => SITE_LOCALES.includes(locale));
+      if (servable.length === 0) {
+        errors.push(
+          `no locale the site publishes: has [${locales.join(', ')}], ` +
+            `site builds [${SITE_LOCALES.join(', ')}] — this work would render nowhere`,
+        );
+      }
+
+      // Text attached to a locale the work is not published in never renders.
+      errors.push(...surplusLocaleErrors(data.material, 'material', locales));
+      (Array.isArray(data.tour) ? data.tour : []).forEach((step, index) => {
+        if (!isPlainObject(step)) return;
+        errors.push(...surplusLocaleErrors(step.text, `tour[${index}].text`, locales));
+        errors.push(...surplusLocaleErrors(step.audio, `tour[${index}].audio`, locales));
+
+        // The tour player falls back when a step lacks the page's locale, but a
+        // missing caption is worth catching while it can still be written.
+        const missing = locales.filter((locale) => !isNonEmptyString(step.text?.[locale]));
+        if (isPlainObject(step.text) && missing.length > 0) {
+          errors.push(`tour[${index}].text is missing [${missing.join(', ')}]`);
+        }
+      });
+    }
+  }
+
   return errors;
+}
+
+/**
+ * Flag localized entries for locales the work is not published in — they are
+ * written to Firestore, never rendered, and drift silently.
+ */
+function surplusLocaleErrors(field, label, publishedLocales) {
+  if (!isPlainObject(field)) return [];
+
+  const surplus = Object.keys(field).filter((locale) => !publishedLocales.includes(locale));
+  if (surplus.length === 0) return [];
+
+  return [
+    `${label} has [${surplus.join(', ')}] but the work is not published in ` +
+      `${surplus.length === 1 ? 'that locale' : 'those locales'} (published: [${publishedLocales.join(', ')}])`,
+  ];
+}
+
+/**
+ * The locales a work is actually published in: those with both a title and a
+ * description. Mirrors `workLocales` in src/utils/locales.ts, which the site
+ * uses to decide which pages to generate.
+ */
+export function workLocales(data) {
+  const title = data?.title ?? {};
+  const description = data?.description ?? {};
+
+  return Object.keys(title).filter(
+    (locale) => isNonEmptyString(title[locale]) && isNonEmptyString(description[locale]),
+  );
 }
 
 /**
@@ -301,11 +393,8 @@ export function assertWorkShape(work, sourceLabel) {
     errors.push('missing document id/slug');
   }
 
-  if (!data?.title?.de || !data?.title?.en) {
-    errors.push('title.de and title.en are required');
-  }
-  if (!data?.description?.de || !data?.description?.en) {
-    errors.push('description.de and description.en are required');
+  if (workLocales(data).length === 0) {
+    errors.push('title and description are required together in at least one locale');
   }
   if (!WORK_CATEGORIES.includes(data?.category)) {
     errors.push(`category must be ${WORK_CATEGORIES.join('|')}`);

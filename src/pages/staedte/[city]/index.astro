@@ -3,10 +3,20 @@ import StaticRedirect from '@/components/StaticRedirect.astro';
 import { getCollection } from 'astro:content';
 import { cityNameToSlug } from '@/i18n/ui';
 import { getLegacyCityRedirect } from '@/data/legacy-url-redirects';
+import { hasLocale } from '@/utils/locales';
 
 export async function getStaticPaths() {
   const works = await getCollection('works');
-  const cityNames = [...new Set(works.map((w) => w.data.city).filter(Boolean))] as string[];
+  // This stub redirects into /de/cities/, so it must only exist for cities
+  // that have a German page to land on.
+  const cityNames = [
+    ...new Set(
+      works
+        .filter((w) => hasLocale(w.data, 'de'))
+        .map((w) => w.data.city)
+        .filter(Boolean),
+    ),
+  ] as string[];
   return cityNames.map((cityName) => ({
     params: { city: cityNameToSlug(cityName) },
     props: { to: getLegacyCityRedirect(cityNameToSlug(cityName)) },

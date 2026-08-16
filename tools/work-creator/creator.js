@@ -34,7 +34,17 @@ const $ = (id) => document.getElementById(id);
 
 let unsubscribeAuth = null;
 
+/**
+ * Locales the tool offers. Adding one here is all it takes on this side — the
+ * site needs a matching src/pages/<code>/ route before those pages can build.
+ */
+const LOCALES = [
+  { code: 'de', label: 'Deutsch' },
+  { code: 'en', label: 'English' },
+];
+
 const state = {
+  locales: new Set(['de', 'en']),
   slug: '',
   slugEdited: false,
   slugTaken: false,
@@ -300,6 +310,159 @@ function onSignedIn(user) {
 }
 
 // ==========================================
+// Locales
+// ==========================================
+
+function selectedLocales() {
+  return LOCALES.map((locale) => locale.code).filter((code) => state.locales.has(code));
+}
+
+/**
+ * Build a locale-keyed map from the per-locale inputs of a field, skipping
+ * locales that are not selected or left blank.
+ */
+function localizedValue(fieldPrefix) {
+  const value = {};
+
+  for (const code of selectedLocales()) {
+    const input = $(`${fieldPrefix}-${code}`);
+    const text = input?.value.trim();
+    if (text) value[code] = text;
+  }
+
+  return value;
+}
+
+function renderLocalePicker() {
+  const container = $('locale-picker');
+  if (container.childElementCount > 0) return;
+
+  for (const { code, label } of LOCALES) {
+    const option = document.createElement('label');
+    option.className = 'checkbox-option';
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = code;
+    input.checked = state.locales.has(code);
+    input.addEventListener('change', () => {
+      if (input.checked) state.locales.add(code);
+      else state.locales.delete(code);
+      renderLocaleFields();
+      updateAll();
+      scheduleSlugCheck();
+    });
+
+    const text = document.createElement('span');
+    text.textContent = `${label} (${code})`;
+
+    option.append(input, text);
+    container.appendChild(option);
+  }
+}
+
+/**
+ * Per-locale inputs are generated rather than hard-coded so that adding a
+ * locale to LOCALES is the only change needed here.
+ */
+function renderLocaleFields() {
+  const codes = selectedLocales();
+
+  renderFieldGroup($('title-language-fields'), codes, {
+    prefix: 'title',
+    label: (code) => `Title (${code.toUpperCase()})`,
+    required: true,
+  });
+
+  renderFieldGroup($('description-fields'), codes, {
+    prefix: 'desc',
+    label: (code) => `Description (${code.toUpperCase()})`,
+    required: true,
+    multiline: true,
+  });
+
+  renderFieldGroup($('material-fields'), codes, {
+    prefix: 'material',
+    label: (code) => `Material (${code.toUpperCase()})`,
+    required: false,
+  });
+
+  wireMarkdownPreviews();
+}
+
+/**
+ * Detached field groups, kept so that unticking a language and reinstating it
+ * does not throw away what was typed in it.
+ */
+const retiredFieldGroups = new Map();
+
+function renderFieldGroup(container, codes, { prefix, label, required, multiline = false }) {
+  for (const child of [...container.children]) {
+    retiredFieldGroups.set(`${prefix}-${child.dataset.locale}`, child);
+    container.removeChild(child);
+  }
+
+  for (const code of codes) {
+    // Reuse the node — live or previously retired — so typed text survives a
+    // locale being toggled off and on again.
+    const kept = retiredFieldGroups.get(`${prefix}-${code}`);
+    if (kept) {
+      retiredFieldGroups.delete(`${prefix}-${code}`);
+      container.appendChild(kept);
+      continue;
+    }
+
+    const group = document.createElement('div');
+    group.className = 'form-group';
+    group.dataset.locale = code;
+
+    const id = `${prefix}-${code}`;
+    const labelEl = document.createElement('label');
+    labelEl.setAttribute('for', id);
+    labelEl.textContent = label(code);
+    if (required) {
+      const flag = document.createElement('span');
+      flag.className = 'required';
+      flag.textContent = 'required';
+      labelEl.append(' ', flag);
+    }
+
+    const field = document.createElement(multiline ? 'textarea' : 'input');
+    field.id = id;
+    field.className = 'input-field';
+    field.dataset.field = '';
+    // Wired here rather than by wireFormFields, which runs once and would miss
+    // fields generated later; the flag keeps it from binding these twice.
+    field.dataset.wired = 'true';
+    field.addEventListener('input', updateAll);
+
+    if (multiline) {
+      field.rows = 8;
+      field.placeholder = 'Markdown. Blank line between paragraphs.';
+
+      const row = document.createElement('div');
+      row.className = 'label-row';
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'btn btn-outline btn-xs preview-toggle';
+      toggle.dataset.previewFor = id;
+      toggle.textContent = 'Preview';
+      row.append(labelEl, toggle);
+
+      const preview = document.createElement('div');
+      preview.className = 'markdown-preview hidden';
+      preview.dataset.previewOf = id;
+
+      group.append(row, field, preview);
+    } else {
+      group.append(labelEl, field);
+    }
+
+    container.appendChild(group);
+  }
+}
+
+// ==========================================
 // Slug
 // ==========================================
 
@@ -307,8 +470,9 @@ let slugCheckTimer = null;
 
 function deriveSlug() {
   if (state.slugEdited) return;
-  const { de, en } = buildTitle();
-  const derived = slugify(de || en);
+  // Whichever selected locale has a title first — the slug is language-neutral.
+  const titles = buildTitle();
+  const derived = slugify(selectedLocales().map((code) => titles[code]).find(Boolean) ?? '');
   $('field-slug').value = derived;
   state.slug = derived;
 }
@@ -462,6 +626,12 @@ async function getMarkdownParser() {
 
 function wireMarkdownPreviews() {
   for (const button of document.querySelectorAll('.preview-toggle')) {
+    // Locale fields are re-rendered on every toggle and reuse their nodes, so
+    // binding unconditionally would stack listeners and make one click both
+    // open and close the preview.
+    if (button.dataset.wired === 'true') continue;
+    button.dataset.wired = 'true';
+
     button.addEventListener('click', async () => {
       const sourceId = button.dataset.previewFor;
       const preview = document.querySelector(`[data-preview-of="${sourceId}"]`);
@@ -818,17 +988,20 @@ function posterPath() {
  */
 function buildTitle() {
   if ($('title-per-language').checked) {
-    return { de: trimmedValue('title-de'), en: trimmedValue('title-en') };
+    return localizedValue('title');
   }
 
+  // One title, repeated for every selected locale.
   const universal = trimmedValue('title-universal');
-  return { de: universal, en: universal };
+  if (!universal) return {};
+
+  return Object.fromEntries(selectedLocales().map((code) => [code, universal]));
 }
 
 function buildWorkData() {
   const data = {
     title: buildTitle(),
-    description: { de: trimmedValue('desc-de'), en: trimmedValue('desc-en') },
+    description: localizedValue('desc'),
     category: $('field-category').value,
     model: {},
     photos: photoPaths(),
@@ -866,10 +1039,9 @@ function buildWorkData() {
     if (value) data[key] = value;
   }
 
-  const materialDe = trimmedValue('material-de');
-  const materialEn = trimmedValue('material-en');
-  if (materialDe || materialEn) {
-    data.material = { de: materialDe, en: materialEn };
+  const material = localizedValue('material');
+  if (Object.keys(material).length > 0) {
+    data.material = material;
   }
 
   return data;
@@ -882,6 +1054,10 @@ function buildWorkData() {
 function collectChecks(data) {
   const errors = [];
   const warnings = [];
+
+  if (selectedLocales().length === 0) {
+    errors.push('pick at least one language — a work with no language has no page');
+  }
 
   errors.push(...validateWorkShape({ id: state.slug, data }));
 
@@ -972,8 +1148,16 @@ function showSuccess() {
   const config = getConfig();
   const { slug } = state.saved;
 
-  $('result-url-en').textContent = `https://openmuseum.io/en/${slug}/`;
-  $('result-url-de').textContent = `https://openmuseum.io/de/${slug}/`;
+  // Only list URLs that will actually be built.
+  const urls = $('result-urls');
+  urls.innerHTML = '';
+  for (const code of Object.keys(state.saved.data.title)) {
+    const item = document.createElement('li');
+    const code_ = document.createElement('code');
+    code_.textContent = `https://openmuseum.io/${code}/${slug}/`;
+    item.appendChild(code_);
+    urls.appendChild(item);
+  }
 
   const deployLink = $('link-deploy');
   if (config.deploy?.workflowUrl) {
@@ -1051,6 +1235,9 @@ function updateAll() {
 
 function wireFormFields() {
   for (const field of document.querySelectorAll('[data-field]')) {
+    // Generated locale fields wire themselves as they are created.
+    if (field.dataset.wired === 'true') continue;
+    field.dataset.wired = 'true';
     field.addEventListener('input', updateAll);
     field.addEventListener('change', updateAll);
   }
@@ -1062,12 +1249,15 @@ function wireFormFields() {
     scheduleSlugCheck();
   });
 
-  for (const id of ['title-universal', 'title-de', 'title-en']) {
-    $(id).addEventListener('input', () => {
-      state.slugTaken = false;
-      scheduleSlugCheck();
-    });
-  }
+  // Per-locale title inputs are generated, so listen at the container.
+  $('title-universal').addEventListener('input', () => {
+    state.slugTaken = false;
+    scheduleSlugCheck();
+  });
+  $('title-language-fields').addEventListener('input', () => {
+    state.slugTaken = false;
+    scheduleSlugCheck();
+  });
 
   $('title-per-language').addEventListener('change', (event) => {
     const perLanguage = event.target.checked;
@@ -1077,10 +1267,13 @@ function wireFormFields() {
     // field the author was just looking at.
     if (perLanguage) {
       const universal = trimmedValue('title-universal');
-      if (universal && !trimmedValue('title-de')) $('title-de').value = universal;
-      if (universal && !trimmedValue('title-en')) $('title-en').value = universal;
+      for (const code of selectedLocales()) {
+        const input = $(`title-${code}`);
+        if (universal && input && !input.value.trim()) input.value = universal;
+      }
     } else if (!trimmedValue('title-universal')) {
-      $('title-universal').value = trimmedValue('title-de') || trimmedValue('title-en');
+      const titles = localizedValue('title');
+      $('title-universal').value = Object.values(titles).find(Boolean) ?? '';
     }
 
     state.slugTaken = false;
@@ -1092,9 +1285,10 @@ function wireFormFields() {
 async function boot() {
   wireConfigIntake();
   wireAuth();
+  renderLocalePicker();
+  renderLocaleFields();
   wireFormFields();
   wireLocation();
-  wireMarkdownPreviews();
   wireAssetInputs();
   wireResultActions();
 

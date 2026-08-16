@@ -4,6 +4,7 @@ import WorkCard from '@/components/WorkCard.astro';
 import { useTranslations, type Lang, getCategoryPath, getWorkPath } from '@/i18n/ui';
 import { getCollection } from 'astro:content';
 import { getAssetUrl } from '@/utils/assets';
+import { hasLocale, localized } from '@/utils/locales';
 
 interface Props {
   lang: Lang;
@@ -17,7 +18,9 @@ const categoryKey = `category.${category}` as const;
 const categoryDescKey = `category.${category}.desc` as const;
 
 const allWorks = await getCollection('works');
-const works = allWorks.filter((w) => w.data.category === category);
+const works = allWorks.filter(
+  (w) => w.data.category === category && hasLocale(w.data, lang),
+);
 
 const siteUrl = Astro.site?.href.replace(/\/$/, '') ?? '';
 
@@ -30,7 +33,7 @@ const itemListSchema = {
     '@type': 'ListItem',
     position: i + 1,
     url: `${siteUrl}${getWorkPath(lang, work.id)}`,
-    name: work.data.title[lang],
+    name: localized(work.data.title, lang, 'title'),
   })),
 };
 
@@ -67,7 +70,7 @@ const breadcrumbSchema = {
           {works.map((work) => (
             <WorkCard
               slug={work.id}
-              title={work.data.title[lang]}
+              title={localized(work.data.title, lang, 'title')}
               poster={work.data.poster ? getAssetUrl(work.data.poster) : undefined}
               category={work.data.category}
               lang={lang}

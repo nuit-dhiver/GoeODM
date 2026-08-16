@@ -210,7 +210,11 @@ export function initTourController() {
         if (state !== 'playing') return;
 
         // Show text
-        elements.textEl.textContent = step.text[lang] || step.text.en || '';
+        // A tour step may not cover every locale the work is published in.
+        // Fall back to any locale that has text rather than to English
+        // specifically — no locale is privileged — and only then to empty.
+        elements.textEl.textContent =
+          step.text[lang] || Object.values(step.text ?? {}).find(Boolean) || '';
         elements.textEl.classList.add('tour-text--visible');
 
         // Determine duration and start audio or timer

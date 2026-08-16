@@ -3,18 +3,28 @@ import { getAlternateLanguagePath, languages, type Lang } from '@/i18n/ui';
 
 interface Props {
   lang: Lang;
+  /**
+   * Locales the current page exists in. Work pages pass the locales the work
+   * is published in; when the other language was not built, the switcher is
+   * hidden rather than linking to a 404. Omitted elsewhere, since every other
+   * page exists in both.
+   */
+  availableLocales?: string[];
 }
 
-const { lang } = Astro.props;
+const { lang, availableLocales } = Astro.props;
 const otherLang: Lang = lang === 'de' ? 'en' : 'de';
 const alternatePath = getAlternateLanguagePath(Astro.url.pathname, lang);
+const hasAlternate = !availableLocales || availableLocales.includes(otherLang);
 ---
 
-<a
-  href={alternatePath}
-  class="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-heading font-semibold uppercase tracking-wider border-2 border-white/30 hover:border-brand-gold hover:text-brand-gold transition-colors"
-  aria-label={`Switch to ${languages[otherLang]}`}
->
-  <span class="text-xs">{otherLang === 'de' ? '🇩🇪' : '🇬🇧'}</span>
-  {languages[otherLang]}
-</a>
+{hasAlternate && (
+  <a
+    href={alternatePath}
+    class="inline-flex items-center gap-1.5 px-3 py-1 text-sm font-heading font-semibold uppercase tracking-wider border-2 border-white/30 hover:border-brand-gold hover:text-brand-gold transition-colors"
+    aria-label={`Switch to ${languages[otherLang]}`}
+  >
+    <span class="text-xs">{otherLang === 'de' ? '🇩🇪' : '🇬🇧'}</span>
+    {languages[otherLang]}
+  </a>
+)}

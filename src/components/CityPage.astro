@@ -1,9 +1,10 @@
 ---
 import Base from '@/layouts/Base.astro';
 import WorkCard from '@/components/WorkCard.astro';
-import { useTranslations, ui, type Lang, getWorkPath } from '@/i18n/ui';
+import { useTranslations, ui, languages, type Lang, getWorkPath } from '@/i18n/ui';
 import { getCollection } from 'astro:content';
 import { getAssetUrl } from '@/utils/assets';
+import { hasLocale, localized } from '@/utils/locales';
 
 interface Props {
   lang: Lang;
@@ -14,7 +15,14 @@ const { lang, cityName } = Astro.props;
 const t = useTranslations(lang);
 
 const allWorks = await getCollection('works');
-const works = allWorks.filter((w) => w.data.city === cityName);
+const cityWorks = allWorks.filter((w) => w.data.city === cityName);
+const works = cityWorks.filter((w) => hasLocale(w.data, lang));
+
+// A city page exists only in locales where that city has works, so the
+// language switcher and hreflang must not offer the others.
+const availableLocales = Object.keys(languages).filter((code) =>
+  cityWorks.some((w) => hasLocale(w.data, code as Lang)),
+);
 
 const siteUrl = Astro.site?.href.replace(/\/$/, '') ?? '';
 
@@ -27,7 +35,7 @@ const itemListSchema = {
     '@type': 'ListItem',
     position: i + 1,
     url: `${siteUrl}${getWorkPath(lang, work.id)}`,
-    name: work.data.title[lang],
+    name: localized(work.data.title, lang, 'title'),
   })),
 };
 
@@ -42,7 +50,7 @@ const breadcrumbSchema = {
 };
 ---
 
-<Base title={`${cityName} — Open Museum`} description={cityName}>
+<Base title={`${cityName} — Open Museum`} description={cityName} availableLocales={availableLocales}>
   <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
   <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   <!-- Page header -->
@@ -66,7 +74,7 @@ const breadcrumbSchema = {
           {works.map((work) => (
             <WorkCard
               slug={work.id}
-              title={work.data.title[lang]}
+              title={localized(work.data.title, lang, 'title')}
               poster={work.data.poster ? getAssetUrl(work.data.poster) : undefined}
               category={work.data.category}
               lang={lang}
