@@ -2,10 +2,19 @@
 import CityPage from '@/components/CityPage.astro';
 import { getCollection } from 'astro:content';
 import { cityNameToSlug } from '@/i18n/ui';
+import { hasLocale } from '@/utils/locales';
 
 export async function getStaticPaths() {
   const works = await getCollection('works');
-  const cityNames = [...new Set(works.map((w) => w.data.city).filter(Boolean))] as string[];
+  const cityNames = [
+    ...new Set(
+      works
+        // A city page only exists in a locale that has works to show.
+        .filter((w) => hasLocale(w.data, 'de'))
+        .map((w) => w.data.city)
+        .filter(Boolean),
+    ),
+  ] as string[];
   return cityNames.map((cityName) => ({
     params: { city: cityNameToSlug(cityName) },
     props: { cityName },

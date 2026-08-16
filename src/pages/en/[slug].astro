@@ -1,12 +1,15 @@
 ---
 import WorkPage from '@/components/WorkPage.astro';
 import { getCollection } from 'astro:content';
+import { hasLocale } from '@/utils/locales';
 
 export async function getStaticPaths() {
   const reservedEnSlugs = new Set(['about', 'artworks', 'cities', 'fountains', 'monuments']);
   const works = await getCollection('works');
   return works
     .filter((work) => !reservedEnSlugs.has(work.id))
+    // A work is only published in the locales it was actually written in.
+    .filter((work) => hasLocale(work.data, 'en'))
     .map((work) => ({
       params: { slug: work.id },
       props: { work },

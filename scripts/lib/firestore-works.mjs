@@ -7,10 +7,12 @@ export {
   IP_STATUSES,
   RESERVED_SLUGS,
   SLUG_PATTERN,
+  LOCALE_PATTERN,
   slugify,
   validateSlug,
   normalizeWorkRecord,
   validateWorkShape,
+  workLocales,
   assertWorkShape,
   deepEqual,
 } from './work-shape.mjs';

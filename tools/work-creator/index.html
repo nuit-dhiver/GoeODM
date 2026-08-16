@@ -86,6 +86,15 @@
         <h2>Content</h2>
 
         <div class="form-group">
+          <label>Languages <span class="required">at least one</span></label>
+          <div class="locale-row" id="locale-picker"></div>
+          <p class="hint">
+            A work is published only in the languages you pick. The others get no
+            page, no card and no hreflang pointing at them.
+          </p>
+        </div>
+
+        <div class="form-group">
           <label for="title-universal">Title <span class="required">required</span></label>
           <input type="text" id="title-universal" class="input-field" data-field
             placeholder="Used for every language">
@@ -95,36 +104,9 @@
           </label>
         </div>
 
-        <div class="form-group-row hidden" id="title-language-fields">
-          <div class="form-group">
-            <label for="title-de">Title (DE) <span class="required">required</span></label>
-            <input type="text" id="title-de" class="input-field" data-field>
-          </div>
-          <div class="form-group">
-            <label for="title-en">Title (EN) <span class="required">required</span></label>
-            <input type="text" id="title-en" class="input-field" data-field>
-          </div>
-        </div>
+        <div class="form-group-row hidden" id="title-language-fields"></div>
 
-        <div class="form-group">
-          <div class="label-row">
-            <label for="desc-de">Description (DE) <span class="required">required</span></label>
-            <button type="button" class="btn btn-outline btn-xs preview-toggle" data-preview-for="desc-de">Preview</button>
-          </div>
-          <textarea id="desc-de" class="input-field" rows="8" data-field
-            placeholder="Markdown. Blank line between paragraphs."></textarea>
-          <div class="markdown-preview hidden" data-preview-of="desc-de"></div>
-        </div>
-
-        <div class="form-group">
-          <div class="label-row">
-            <label for="desc-en">Description (EN) <span class="required">required</span></label>
-            <button type="button" class="btn btn-outline btn-xs preview-toggle" data-preview-for="desc-en">Preview</button>
-          </div>
-          <textarea id="desc-en" class="input-field" rows="8" data-field
-            placeholder="Markdown. Blank line between paragraphs."></textarea>
-          <div class="markdown-preview hidden" data-preview-of="desc-en"></div>
-        </div>
+        <div id="description-fields"></div>
       </section>
 
       <section class="form-section brutal-card">
@@ -178,17 +160,8 @@
           </div>
         </div>
 
-        <div class="form-group-row">
-          <div class="form-group">
-            <label for="material-de">Material (DE)</label>
-            <input type="text" id="material-de" class="input-field" data-field placeholder="Stein">
-          </div>
-          <div class="form-group">
-            <label for="material-en">Material (EN)</label>
-            <input type="text" id="material-en" class="input-field" data-field placeholder="Stone">
-          </div>
-        </div>
-        <p class="hint">Material is optional — but if you fill one language you must fill both.</p>
+        <div class="form-group-row" id="material-fields"></div>
+        <p class="hint">Material is optional. Leave a language blank to omit it there.</p>
 
         <div class="form-group">
           <label class="checkbox-option">
@@ -342,10 +315,7 @@
         <a id="link-deploy" class="btn btn-gold w-full" target="_blank" rel="noreferrer noopener">
           Open the deploy workflow ↗
         </a>
-        <ul class="result-links">
-          <li><code id="result-url-en"></code></li>
-          <li><code id="result-url-de"></code></li>
-        </ul>
+        <ul class="result-links" id="result-urls"></ul>
         <div class="result-actions">
           <button id="btn-download-json" class="btn btn-outline btn-sm">Download JSON backup</button>
           <button id="btn-new-work" class="btn btn-outline btn-sm">Start another work</button>

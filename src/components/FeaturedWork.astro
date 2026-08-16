@@ -4,6 +4,7 @@ import { getWorkPath, useTranslations, type Lang } from '@/i18n/ui';
 import { getCollection } from 'astro:content';
 import { marked } from 'marked';
 import { getAssetUrl } from '@/utils/assets';
+import { hasLocale, localized } from '@/utils/locales';
 
 interface Props {
   lang: Lang;
@@ -12,15 +13,16 @@ interface Props {
 const { lang } = Astro.props;
 const t = useTranslations(lang);
 
-// Get all works and pick one randomly at build time
+// Get all works and pick one randomly at build time. Only works published in
+// this locale are eligible — the feature renders their title and description.
 const allWorks = await getCollection('works');
-const worksWithModels = allWorks.filter((w) => w.data.model.glb);
+const worksWithModels = allWorks.filter((w) => w.data.model.glb && hasLocale(w.data, lang));
 const featured = worksWithModels.length > 0
   ? worksWithModels[Math.floor(Math.random() * worksWithModels.length)]
   : null;
 
 const descriptionHtml = featured
-  ? await marked.parse(featured.data.description[lang])
+  ? await marked.parse(localized(featured.data.description, lang, 'description'))
   : '';
 ---
 
@@ -37,7 +39,7 @@ const descriptionHtml = featured
           <ModelViewer
             src={getAssetUrl(featured.data.model.glb!)}
             iosSrc={featured.data.model.usdz ? getAssetUrl(featured.data.model.usdz) : undefined}
-            alt={featured.data.title[lang]}
+            alt={localized(featured.data.title, lang, 'title')}
             poster={featured.data.poster ? getAssetUrl(featured.data.poster) : undefined}
             class="h-full"
           />
@@ -46,7 +48,7 @@ const descriptionHtml = featured
         <!-- Info -->
         <div class="flex flex-col justify-center">
           <h3 class="font-heading text-2xl sm:text-3xl font-bold uppercase tracking-wider mb-4">
-            {featured.data.title[lang]}
+            {localized(featured.data.title, lang, 'title')}
           </h3>
           <div class="text-lg leading-relaxed mb-6 text-black/70 prose prose-sm max-w-none" set:html={descriptionHtml} />
           {featured.data.artist && (

@@ -9,9 +9,15 @@ interface Props {
   title: string;
   description?: string;
   ogImage?: string;
+  /**
+   * Locales this particular page exists in. Work pages pass the locales the
+   * work is published in, so hreflang never points at a page that was not
+   * generated. Everything else exists in every locale.
+   */
+  availableLocales?: string[];
 }
 
-const { title, description = '', ogImage } = Astro.props;
+const { title, description = '', ogImage, availableLocales } = Astro.props;
 const lang = getLangFromUrl(Astro.url);
 const t = useTranslations(lang);
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
@@ -22,6 +28,12 @@ const isRootPath = Astro.url.pathname === import.meta.env.BASE_URL;
 const deURL = isRootPath ? new URL(`${import.meta.env.BASE_URL}de/`, Astro.site) : (lang === 'de' ? canonicalURL : alternateURL);
 const enURL = isRootPath ? new URL(`${import.meta.env.BASE_URL}en/`, Astro.site) : (lang === 'en' ? canonicalURL : alternateURL);
 const xDefaultURL = new URL(import.meta.env.BASE_URL, Astro.site);
+
+// Advertise a translation only when it was actually built. A work published in
+// one language has no counterpart to point at, and claiming otherwise sends
+// crawlers to a 404.
+const showDe = !availableLocales || availableLocales.includes('de');
+const showEn = !availableLocales || availableLocales.includes('en');
 
 // Strip markdown syntax and truncate for social meta descriptions
 const plainDescription = description
@@ -51,9 +63,9 @@ const resolvedOgImage = ogImage
     <link rel="canonical" href={canonicalURL} />
 
     <!-- hreflang -->
-    <link rel="alternate" hreflang="de" href={deURL} />
-    <link rel="alternate" hreflang="en" href={enURL} />
-    <link rel="alternate" hreflang="x-default" href={xDefaultURL} />
+    {showDe && <link rel="alternate" hreflang="de" href={deURL} />}
+    {showEn && <link rel="alternate" hreflang="en" href={enURL} />}
+    {showDe && showEn && <link rel="alternate" hreflang="x-default" href={xDefaultURL} />}
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -102,7 +114,7 @@ const resolvedOgImage = ogImage
     <slot name="head" />
   </head>
   <body class="min-h-screen flex flex-col">
-    <Header lang={lang} />
+    <Header lang={lang} availableLocales={availableLocales} />
     <main class="flex-1">
       <slot />
     </main>

@@ -1,5 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
+import { hasLocale } from '@/utils/locales';
 import { useTranslations } from '@/i18n/ui';
 import type { Lang } from '@/i18n/ui';
 
@@ -10,7 +11,9 @@ interface Props {
 const { lang } = Astro.props;
 const t = useTranslations(lang);
 
-const works = await getCollection('works');
+const allWorks = await getCollection('works');
+// Count what this locale actually shows, so the numbers match the pages.
+const works = allWorks.filter((w) => hasLocale(w.data, lang));
 
 const totalModels = works.length;
 const totalCities = new Set(works.map((w) => w.data.city).filter(Boolean)).size;

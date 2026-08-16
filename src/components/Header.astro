@@ -2,18 +2,29 @@
 import LanguageSwitcher from './LanguageSwitcher.astro';
 import { useTranslations, getAboutPath, getCategoryPath, getCityPath, cityNameToSlug, type Lang } from '@/i18n/ui';
 import { getCollection } from 'astro:content';
+import { hasLocale } from '@/utils/locales';
 
 interface Props {
   lang: Lang;
+  availableLocales?: string[];
 }
 
-const { lang } = Astro.props;
+const { lang, availableLocales } = Astro.props;
 const t = useTranslations(lang);
 const base = import.meta.env.BASE_URL;
 const homePath = `${base}${lang}/`;
 
 const allWorks = await getCollection('works');
-const cityNames = [...new Set(allWorks.map((w) => w.data.city).filter(Boolean))].sort() as string[];
+// Only link cities that have a page in this locale — a city whose works are
+// all in another language has no page here to navigate to.
+const cityNames = [
+  ...new Set(
+    allWorks
+      .filter((w) => hasLocale(w.data, lang))
+      .map((w) => w.data.city)
+      .filter(Boolean),
+  ),
+].sort() as string[];
 ---
 
 <header class="bg-black text-white border-b-brutal border-brand-gold sticky top-0 z-50">
@@ -72,7 +83,7 @@ const cityNames = [...new Set(allWorks.map((w) => w.data.city).filter(Boolean))]
         </div>
 
         <div class="ml-4 border-l border-white/30 pl-4">
-          <LanguageSwitcher lang={lang} />
+          <LanguageSwitcher lang={lang} availableLocales={availableLocales} />
         </div>
       </div>
 
@@ -129,7 +140,7 @@ const cityNames = [...new Set(allWorks.map((w) => w.data.city).filter(Boolean))]
           ))}
         </div>
         <div class="mt-2 pt-2 border-t border-white/20">
-          <LanguageSwitcher lang={lang} />
+          <LanguageSwitcher lang={lang} availableLocales={availableLocales} />
         </div>
       </div>
     </div>
