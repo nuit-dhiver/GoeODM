@@ -2,6 +2,8 @@
 
 Open Museum is a bilingual (English/German) static website for exploring 3D reconstructions of monuments, fountains, and public art. The project documents cultural heritage through interactive 3D presentation at [openmuseum.io](https://openmuseum.io).
 
+> Working on the code? [`AGENTS.md`](AGENTS.md) is the orientation guide — architecture, the build's Firestore dependency, and the gotchas that are not visible from the tree. Written for coding agents, but the same ground a new contributor needs.
+
 ## Project Goals
 
 The primary aim is to document and preserve 3D models of cultural and artistic heritage in public spaces. By leveraging modern photogrammetry and 3D reconstruction, we make these works accessible for online viewing and cultural documentation.
