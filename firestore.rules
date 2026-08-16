@@ -21,11 +21,85 @@ service cloud.firestore {
     //   - ipStatus: string enum public-domain|freedom-of-panorama|authorized-use
     //   - tour: list of tour step maps (optional)
     //
-    // Access model (intentionally simple):
+    // Access model:
     //   - Public read: work content is published website data
-    //   - No client writes: there is no in-app editor yet
-    //   - Firebase Console / Admin CLI / server SDK writes use IAM and bypass these rules
+    //   - Writes to works/{slug}: only the content admins listed in
+    //     isContentAdmin(), and only documents that pass isValidWork()
+    //   - Everything else: no client writes
+    //   - Firebase Console / Admin CLI / server SDK writes use IAM and
+    //     bypass these rules entirely
+    //
+    // The shape guard is not a convenience — src/loaders/firestore-works.ts
+    // aborts the whole site build on a single malformed document, so an
+    // invalid write here breaks publishing for every work, not just this one.
+    // Keep it in sync with src/content/work-schema.ts and
+    // scripts/lib/work-shape.mjs.
     // ===============================================================
+
+    // Firebase Auth UIDs allowed to write content, from
+    // Console → Authentication → Users. Anonymous sessions (which the public
+    // site creates for model loading) can never qualify: the provider check
+    // below requires an email/password sign-in.
+    function isContentAdmin() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && request.auth.uid in [
+          'Eh7OtGAojyNZjM5vHuSgVLvHgGw2'
+        ];
+    }
+
+    function isBilingual(value) {
+      return value is map
+        && value.keys().hasAll(['de', 'en'])
+        && value.de is string && value.de.size() > 0
+        && value.en is string && value.en.size() > 0;
+    }
+
+    function isValidWork(data) {
+      return data.keys().hasAll([
+          'title', 'description', 'category', 'model',
+          'photos', 'location', 'downloadAllowed', 'ipStatus'
+        ])
+        && data.keys().hasOnly([
+          'title', 'description', 'category', 'model', 'photos', 'poster',
+          'location', 'city', 'country', 'artist', 'modelCreator', 'year',
+          'material', 'downloadAllowed', 'ipStatus', 'tour'
+        ])
+        && isBilingual(data.title)
+        && isBilingual(data.description)
+        && data.category in ['brunnen', 'denkmal', 'kunstwerk']
+        && data.model is map
+        && data.model.keys().hasOnly(['glb', 'usdz'])
+        && data.model.glb is string && data.model.glb.size() > 0
+        && data.photos is list
+        && data.location is map
+        && data.location.keys().hasOnly(['lat', 'lng', 'address', 'myMapsEmbedUrl'])
+        && data.location.lat is number
+        && data.location.lat >= -90 && data.location.lat <= 90
+        && data.location.lng is number
+        && data.location.lng >= -180 && data.location.lng <= 180
+        && data.downloadAllowed is bool
+        && data.ipStatus in ['public-domain', 'freedom-of-panorama', 'authorized-use']
+        && (!('year' in data) || data.year is string)
+        && (!('poster' in data) || data.poster is string)
+        && (!('material' in data) || isBilingual(data.material))
+        && (!('tour' in data) || data.tour is list);
+    }
+
+    match /works/{slug} {
+      allow read: if true;
+
+      // Create only. The work creator never updates, so denying update makes
+      // Firestore itself reject an overwrite of an existing work rather than
+      // relying on the tool's own existence check. Edit works in the Console.
+      allow create: if isContentAdmin() && isValidWork(request.resource.data);
+      allow update: if false;
+
+      // Deletes stay closed: src/loaders/firestore-works.ts refuses to build
+      // with an empty collection, so an accidental client-side delete could
+      // block all publishing. Remove works from the Console instead.
+      allow delete: if false;
+    }
 
     match /{document=**} {
       allow read: if true;

@@ -1,5 +1,20 @@
 import { Firestore } from '@google-cloud/firestore';
 
+// Shape helpers live in a dependency-free module so the browser tool in
+// tools/work-creator/ can import the same validation over HTTP.
+export {
+  WORK_CATEGORIES,
+  IP_STATUSES,
+  RESERVED_SLUGS,
+  SLUG_PATTERN,
+  slugify,
+  validateSlug,
+  normalizeWorkRecord,
+  validateWorkShape,
+  assertWorkShape,
+  deepEqual,
+} from './work-shape.mjs';
+
 export const FIRESTORE_PROJECT_ID =
   process.env.FIRESTORE_PROJECT_ID?.trim() ||
   process.env.GOOGLE_CLOUD_PROJECT?.trim() ||
@@ -36,88 +51,4 @@ export async function fetchWorksFromFirestore() {
   }));
   works.sort((a, b) => a.id.localeCompare(b.id));
   return works;
-}
-
-/**
- * Normalize legacy JSON quirks before schema validation / Firestore write.
- * genesis.json nested artist/year/material inside location.
- */
-export function normalizeWorkRecord(raw, slug) {
-  const data = structuredClone(raw);
-
-  if (data.location && typeof data.location === 'object') {
-    const location = data.location;
-
-    if (!data.artist && typeof location.artist === 'string') {
-      data.artist = location.artist;
-    }
-    if (!data.year && typeof location.year === 'string') {
-      data.year = location.year;
-    }
-    if (!data.material && location.material && typeof location.material === 'object') {
-      data.material = location.material;
-    }
-
-    data.location = {
-      lat: location.lat,
-      lng: location.lng,
-      ...(typeof location.address === 'string' ? { address: location.address } : {}),
-      ...(typeof location.myMapsEmbedUrl === 'string'
-        ? { myMapsEmbedUrl: location.myMapsEmbedUrl }
-        : {}),
-    };
-  }
-
-  if (!Array.isArray(data.photos)) {
-    data.photos = [];
-  }
-
-  if (typeof data.downloadAllowed !== 'boolean') {
-    data.downloadAllowed = false;
-  }
-
-  if (!data.ipStatus) {
-    data.ipStatus = 'freedom-of-panorama';
-  }
-
-  return { id: slug, data };
-}
-
-export function assertWorkShape(work, sourceLabel) {
-  const { id, data } = work;
-  const errors = [];
-
-  if (!id || typeof id !== 'string') {
-    errors.push('missing document id/slug');
-  }
-
-  if (!data?.title?.de || !data?.title?.en) {
-    errors.push('title.de and title.en are required');
-  }
-  if (!data?.description?.de || !data?.description?.en) {
-    errors.push('description.de and description.en are required');
-  }
-  if (!['brunnen', 'denkmal', 'kunstwerk'].includes(data?.category)) {
-    errors.push('category must be brunnen|denkmal|kunstwerk');
-  }
-  if (!data?.model || typeof data.model !== 'object') {
-    errors.push('model object is required');
-  }
-  if (
-    typeof data?.location?.lat !== 'number' ||
-    typeof data?.location?.lng !== 'number'
-  ) {
-    errors.push('location.lat and location.lng are required numbers');
-  }
-  if (!Array.isArray(data?.photos)) {
-    errors.push('photos must be an array');
-  }
-
-  if (errors.length > 0) {
-    throw new Error(`Invalid work ${sourceLabel}: ${errors.join('; ')}`);
-  }
-}
-
-export function deepEqual(a, b) {
-  return JSON.stringify(a) === JSON.stringify(b);
 }

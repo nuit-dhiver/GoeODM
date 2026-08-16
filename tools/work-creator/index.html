@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Museum — Work Creator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="creator.css">
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+</head>
+<body>
+  <header class="creator-header">
+    <h1>OPEN MUSEUM — WORK CREATOR</h1>
+    <div class="header-actions">
+      <span id="connection-badge" class="badge badge-idle">No config</span>
+      <span id="admin-email" class="admin-email hidden"></span>
+      <button id="btn-sign-out" class="btn btn-outline btn-sm hidden">Sign out</button>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       Setup gate: config + sign-in. Hides once both are done.
+       ============================================================ -->
+  <section id="setup-panel" class="setup-panel">
+    <div class="setup-card brutal-card">
+      <h2>1 — Attach config</h2>
+      <p class="hint">
+        A JSON file with the project's public Firebase settings. Copy
+        <code>creator.config.example.json</code> to <code>creator.config.json</code>
+        next to this page and it loads automatically on every visit.
+      </p>
+
+      <div id="config-drop" class="drop-zone">
+        <p>Drop <code>creator.config.json</code> here</p>
+        <label class="btn btn-outline btn-sm">
+          Choose file
+          <input type="file" id="config-input" accept="application/json,.json" hidden>
+        </label>
+      </div>
+
+      <div id="config-status" class="status-line"></div>
+      <dl id="config-summary" class="config-summary hidden"></dl>
+      <button id="btn-forget-config" class="btn btn-outline btn-sm hidden">Forget stored config</button>
+    </div>
+
+    <div class="setup-card brutal-card">
+      <h2>2 — Sign in</h2>
+      <p class="hint">
+        The admin user created in Firebase Console → Authentication. The password
+        is used to sign in and is never stored.
+      </p>
+
+      <div class="form-group">
+        <label for="auth-email">Admin email</label>
+        <input type="email" id="auth-email" class="input-field" autocomplete="username" disabled>
+      </div>
+      <div class="form-group">
+        <label for="auth-password">Password</label>
+        <input type="password" id="auth-password" class="input-field" autocomplete="current-password" disabled>
+      </div>
+
+      <button id="btn-sign-in" class="btn btn-gold w-full" disabled>Sign in</button>
+      <div id="auth-status" class="status-line"></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       Main editor. Enabled only after config + sign-in.
+       ============================================================ -->
+  <main id="editor" class="editor-layout hidden">
+    <div class="form-column">
+
+      <section class="form-section brutal-card">
+        <h2>Identity</h2>
+
+        <div class="form-group">
+          <label for="field-slug">Slug — becomes the document ID and the URL</label>
+          <input type="text" id="field-slug" class="input-field font-mono" placeholder="derived from the German title">
+          <div id="slug-status" class="status-line"></div>
+        </div>
+      </section>
+
+      <section class="form-section brutal-card">
+        <h2>Content</h2>
+
+        <div class="form-group">
+          <label for="title-universal">Title <span class="required">required</span></label>
+          <input type="text" id="title-universal" class="input-field" data-field
+            placeholder="Used for every language">
+          <label class="checkbox-option">
+            <input type="checkbox" id="title-per-language">
+            <span>This title differs by language</span>
+          </label>
+        </div>
+
+        <div class="form-group-row hidden" id="title-language-fields">
+          <div class="form-group">
+            <label for="title-de">Title (DE) <span class="required">required</span></label>
+            <input type="text" id="title-de" class="input-field" data-field>
+          </div>
+          <div class="form-group">
+            <label for="title-en">Title (EN) <span class="required">required</span></label>
+            <input type="text" id="title-en" class="input-field" data-field>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <label for="desc-de">Description (DE) <span class="required">required</span></label>
+            <button type="button" class="btn btn-outline btn-xs preview-toggle" data-preview-for="desc-de">Preview</button>
+          </div>
+          <textarea id="desc-de" class="input-field" rows="8" data-field
+            placeholder="Markdown. Blank line between paragraphs."></textarea>
+          <div class="markdown-preview hidden" data-preview-of="desc-de"></div>
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <label for="desc-en">Description (EN) <span class="required">required</span></label>
+            <button type="button" class="btn btn-outline btn-xs preview-toggle" data-preview-for="desc-en">Preview</button>
+          </div>
+          <textarea id="desc-en" class="input-field" rows="8" data-field
+            placeholder="Markdown. Blank line between paragraphs."></textarea>
+          <div class="markdown-preview hidden" data-preview-of="desc-en"></div>
+        </div>
+      </section>
+
+      <section class="form-section brutal-card">
+        <h2>Metadata</h2>
+
+        <div class="form-group">
+          <label for="field-category">Category <span class="required">required</span></label>
+          <select id="field-category" class="input-field" data-field>
+            <option value="">Choose a category…</option>
+            <option value="brunnen">Brunnen — fountain (/fountains/)</option>
+            <option value="denkmal">Denkmal — monument (/monuments/)</option>
+            <option value="kunstwerk">Kunstwerk — artwork (/artworks/)</option>
+          </select>
+        </div>
+
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="field-city">City</label>
+            <input type="text" id="field-city" class="input-field" data-field list="city-options">
+            <datalist id="city-options"></datalist>
+          </div>
+          <div class="form-group">
+            <label for="field-country">Country</label>
+            <input type="text" id="field-country" class="input-field" data-field>
+          </div>
+        </div>
+
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="field-artist">Artist</label>
+            <input type="text" id="field-artist" class="input-field" data-field>
+          </div>
+          <div class="form-group">
+            <label for="field-model-creator">Model creator</label>
+            <input type="text" id="field-model-creator" class="input-field" data-field>
+          </div>
+        </div>
+
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="field-year">Year — free text</label>
+            <input type="text" id="field-year" class="input-field" data-field placeholder="1960, or 1994 (restored 2003)">
+          </div>
+          <div class="form-group">
+            <label for="field-ip-status">IP status</label>
+            <select id="field-ip-status" class="input-field" data-field>
+              <option value="freedom-of-panorama">freedom-of-panorama</option>
+              <option value="public-domain">public-domain</option>
+              <option value="authorized-use">authorized-use</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="material-de">Material (DE)</label>
+            <input type="text" id="material-de" class="input-field" data-field placeholder="Stein">
+          </div>
+          <div class="form-group">
+            <label for="material-en">Material (EN)</label>
+            <input type="text" id="material-en" class="input-field" data-field placeholder="Stone">
+          </div>
+        </div>
+        <p class="hint">Material is optional — but if you fill one language you must fill both.</p>
+
+        <div class="form-group">
+          <label class="checkbox-option">
+            <input type="checkbox" id="field-download-allowed" data-field>
+            <span>Offer GLB/USDZ download on the work page</span>
+          </label>
+          <p id="download-note" class="hint"></p>
+        </div>
+      </section>
+
+      <section class="form-section brutal-card">
+        <h2>Location</h2>
+
+        <div class="form-group">
+          <label for="maps-paste">Paste a Google Maps link or coordinates</label>
+          <div class="input-row">
+            <input type="text" id="maps-paste" class="input-field" placeholder="https://maps.google.com/…@51.5378,9.9339,17z  ·  or  51.5378, 9.9339">
+            <button type="button" id="btn-parse-maps" class="btn btn-outline">Extract</button>
+          </div>
+        </div>
+
+        <div class="form-group-row">
+          <div class="form-group">
+            <label for="field-lat">Latitude <span class="required">required</span></label>
+            <input type="number" id="field-lat" class="input-field font-mono" step="any" data-field>
+          </div>
+          <div class="form-group">
+            <label for="field-lng">Longitude <span class="required">required</span></label>
+            <input type="number" id="field-lng" class="input-field font-mono" step="any" data-field>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="field-address">Address</label>
+          <input type="text" id="field-address" class="input-field" data-field>
+        </div>
+
+        <div class="form-group">
+          <label for="field-mymaps">Google My Maps embed URL</label>
+          <input type="text" id="field-mymaps" class="input-field font-mono text-sm" data-field
+            placeholder="https://www.google.com/maps/d/embed?mid=…">
+        </div>
+
+        <a id="link-verify-map" class="btn btn-outline btn-sm hidden" target="_blank" rel="noreferrer noopener">
+          Verify these coordinates on Google Maps ↗
+        </a>
+      </section>
+
+      <section class="form-section brutal-card">
+        <h2>Assets</h2>
+        <p class="hint">
+          Set the slug first — every upload path is derived from it. Files upload to
+          Firebase Storage; the document records bucket-relative paths like
+          <code>/models/slug.glb</code>.
+        </p>
+
+        <div class="asset-slots">
+          <div class="asset-slot" data-slot="glb">
+            <div class="asset-slot-head">
+              <strong>3D model (.glb)</strong>
+              <span class="required">required</span>
+            </div>
+            <label class="btn btn-outline btn-sm">
+              Choose .glb
+              <input type="file" class="asset-input" data-slot-input="glb" accept=".glb,model/gltf-binary" hidden>
+            </label>
+          </div>
+
+          <div class="asset-slot" data-slot="usdz">
+            <div class="asset-slot-head">
+              <strong>iOS AR model (.usdz)</strong>
+              <span class="optional">optional</span>
+            </div>
+            <label class="btn btn-outline btn-sm">
+              Choose .usdz
+              <input type="file" class="asset-input" data-slot-input="usdz" accept=".usdz" hidden>
+            </label>
+          </div>
+
+          <div class="asset-slot" data-slot="poster">
+            <div class="asset-slot-head">
+              <strong>Poster image</strong>
+              <span class="optional">card + og:image</span>
+            </div>
+            <label class="btn btn-outline btn-sm">
+              Choose image
+              <input type="file" class="asset-input" data-slot-input="poster" accept="image/*" hidden>
+            </label>
+          </div>
+
+          <div class="asset-slot" data-slot="photos">
+            <div class="asset-slot-head">
+              <strong>Gallery photos</strong>
+              <span class="optional">multiple</span>
+            </div>
+            <label class="btn btn-outline btn-sm">
+              Choose images
+              <input type="file" class="asset-input" data-slot-input="photos" accept="image/*" multiple hidden>
+            </label>
+          </div>
+        </div>
+
+        <label class="checkbox-option">
+          <input type="checkbox" id="poster-from-photo">
+          <span>No separate poster — use the first gallery photo</span>
+        </label>
+
+        <div id="asset-list" class="asset-list"></div>
+
+        <button id="btn-upload-assets" class="btn btn-gold w-full" disabled>Upload assets to Storage</button>
+        <div id="upload-status" class="status-line"></div>
+      </section>
+    </div>
+
+    <!-- ========================================================
+         Sticky review column
+         ======================================================== -->
+    <aside class="review-column">
+      <div class="review-card brutal-card">
+        <h2>Model preview</h2>
+        <div class="viewer-container">
+          <model-viewer id="asset-preview" camera-controls auto-rotate shadow-intensity="1"
+            style="width: 100%; height: 260px; background: #222;">
+            <div id="viewer-placeholder" class="viewer-placeholder"><p>No model chosen</p></div>
+          </model-viewer>
+        </div>
+        <p class="hint">Check orientation and scale here before publishing.</p>
+      </div>
+
+      <div class="review-card brutal-card">
+        <h2>Checks</h2>
+        <ul id="validation-list" class="validation-list"></ul>
+      </div>
+
+      <div class="review-card brutal-card">
+        <h2>
+          Document
+          <button type="button" id="btn-toggle-json" class="btn btn-outline btn-xs">Show</button>
+        </h2>
+        <pre id="json-preview" class="json-preview hidden"></pre>
+        <button id="btn-write" class="btn btn-gold btn-large w-full" disabled>Write to Firestore</button>
+        <div id="write-status" class="status-line"></div>
+      </div>
+
+      <div id="save-result" class="review-card brutal-card success-card hidden">
+        <h2>Saved — not yet live</h2>
+        <p class="hint">
+          The document is in Firestore, but the site is static: pages are built from
+          Firestore at build time. Run the deploy to publish it.
+        </p>
+        <a id="link-deploy" class="btn btn-gold w-full" target="_blank" rel="noreferrer noopener">
+          Open the deploy workflow ↗
+        </a>
+        <ul class="result-links">
+          <li><code id="result-url-en"></code></li>
+          <li><code id="result-url-de"></code></li>
+        </ul>
+        <div class="result-actions">
+          <button id="btn-download-json" class="btn btn-outline btn-sm">Download JSON backup</button>
+          <button id="btn-new-work" class="btn btn-outline btn-sm">Start another work</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="creator.js"></script>
+</body>
+</html>
