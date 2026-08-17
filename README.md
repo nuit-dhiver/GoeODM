@@ -146,6 +146,20 @@ In addition to the existing `PUBLIC_*` variables, set:
 
 These enable keyless Workload Identity Federation so CI/deploy can read Firestore at build time.
 
+### Security rules are deployed by CI
+
+`firestore.rules` and `storage.rules` are the source of truth. The **Deploy Firebase Rules** workflow compiles them on every pull request that touches them, deploys them when the change merges to `main`, and redeploys weekly so that an edit made directly in the Firebase Console is detected and overwritten rather than silently diverging.
+
+Editing rules in the Console still works, but the change will be reverted on the next merge or scheduled run unless it is copied back into the repo.
+
+This needs one IAM grant beyond the variables above — the build service account must be allowed to publish rulesets:
+
+```bash
+gcloud projects add-iam-policy-binding open-museum-885a1 --member="serviceAccount:github-astro-build@open-museum-885a1.iam.gserviceaccount.com" --role="roles/firebaserules.admin"
+```
+
+Or in the Cloud Console: **IAM & Admin → IAM →** edit that service account **→ Add role → Firebase Rules Admin**.
+
 ## Gallery Thumbnails (Build-Time Optimization)
 
 Work-page gallery images use generated `.webp` thumbnails for initial render and load the full-size photo only when the user opens the lightbox.
