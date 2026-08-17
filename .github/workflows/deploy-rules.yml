@@ -18,12 +18,17 @@ name: Deploy Firebase Rules
 
 # NOTE: the two path lists are duplicated on purpose — GitHub Actions does not
 # support YAML anchors, so they cannot be shared. Keep them identical.
+#
+# firestore.indexes.json is deliberately NOT listed: --only firestore:rules
+# does not deploy indexes, so triggering on it would produce a green run that
+# shipped nothing. Indexes stay a manual `firebase deploy --only
+# firestore:indexes` — and note the file is currently empty, so deploying it
+# would propose deleting any index created in the Console.
 on:
   pull_request:
     paths:
       - firestore.rules
       - storage.rules
-      - firestore.indexes.json
       - firebase.json
       - .github/workflows/deploy-rules.yml
   push:
@@ -31,7 +36,6 @@ on:
     paths:
       - firestore.rules
       - storage.rules
-      - firestore.indexes.json
       - firebase.json
       - .github/workflows/deploy-rules.yml
   schedule:
@@ -102,24 +106,27 @@ jobs:
             --project "$FIREBASE_PROJECT" \
             --non-interactive 2>&1 | tee deploy.log
 
-      # "released rules" means the live ruleset differed from the repo. On a
-      # push that is expected; on the scheduled run it means someone edited the
-      # Console and the repo has just overwritten them — worth surfacing rather
-      # than burying in a log.
+      # Drift is "the CLI had to upload", which it logs as
+      # "<target>: uploading rules". Do NOT test for "released rules": the CLI
+      # prints that on every successful deploy, including runs where it skipped
+      # the upload because the live ruleset already matched, so it can never
+      # distinguish the two.
       - name: Report drift
-        if: always() && steps.deploy.outcome == 'success'
+        if: steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure'
         run: |
           {
             echo "### Firebase rules"
             echo
             for target in firestore storage; do
-              if grep -q "$target: released rules" deploy.log; then
+              if grep -q "$target: uploading rules" deploy.log; then
                 echo "- \`$target\`: **updated** — the live ruleset did not match the repo"
-              else
+              elif grep -q "$target: latest version of .* already up to date" deploy.log; then
                 echo "- \`$target\`: already in sync"
+              else
+                echo "- \`$target\`: **not deployed** — the run did not get this far"
               fi
             done
-            if [ "${{ github.event_name }}" = "schedule" ] && grep -q "released rules" deploy.log; then
+            if [ "${{ github.event_name }}" = "schedule" ] && grep -q "uploading rules" deploy.log; then
               echo
               echo "> Drift corrected on a scheduled run. Something changed the rules"
               echo "> outside this repo — check the Console audit log, and copy the"

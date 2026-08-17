@@ -152,13 +152,19 @@ These enable keyless Workload Identity Federation so CI/deploy can read Firestor
 
 Editing rules in the Console still works, but the change will be reverted on the next merge or scheduled run unless it is copied back into the repo.
 
-This needs one IAM grant beyond the variables above — the build service account must be allowed to publish rulesets:
+This needs two IAM grants beyond the variables above. The build service account has Firestore read access only, so without both, the workflow fails on its first step:
 
 ```bash
 gcloud projects add-iam-policy-binding open-museum-885a1 --member="serviceAccount:github-astro-build@open-museum-885a1.iam.gserviceaccount.com" --role="roles/firebaserules.admin"
 ```
 
-Or in the Cloud Console: **IAM & Admin → IAM →** edit that service account **→ Add role → Firebase Rules Admin**.
+```bash
+gcloud projects add-iam-policy-binding open-museum-885a1 --member="serviceAccount:github-astro-build@open-museum-885a1.iam.gserviceaccount.com" --role="roles/serviceusage.serviceUsageViewer"
+```
+
+Or in the Cloud Console: **IAM & Admin → IAM →** edit that service account **→ Add role →** *Firebase Rules Admin*, then *Service Usage Viewer*.
+
+The second role is the non-obvious one. Before touching rules at all, the CLI checks that `firestore.googleapis.com` and `firebasestorage.googleapis.com` are enabled, which reads the Service Usage API. Without `serviceusage.services.get` the run dies in that preflight with a 403 that names an API rather than a rules permission — and it dies on the `--dry-run` too, so validation fails as well as deploys. A local deploy does not hit this because a human running it is usually a project Owner.
 
 ## Gallery Thumbnails (Build-Time Optimization)
 
