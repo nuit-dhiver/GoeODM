@@ -1,0 +1,135 @@
+name: Deploy Firebase Rules
+
+# Makes the repo the enforced source of truth for security rules (issue #94).
+#
+# Before this existed, firestore.rules and storage.rules were deployed by hand.
+# The repo and the Firebase Console could disagree indefinitely, and the next
+# manual deploy would silently revert a Console hotfix with no diff and no
+# review.
+#
+# Three triggers, deliberately:
+#   - pull_request: compile the rules so a broken ruleset cannot merge
+#   - push to main: deploy, so merging is what publishes
+#   - schedule:     redeploy weekly, which corrects drift introduced in the
+#                   Console out of band and reports whether it found any
+#
+# Deploying rules is idempotent: the CLI skips the upload when the live ruleset
+# already matches, so the scheduled run is free when nothing has drifted.
+
+# NOTE: the two path lists are duplicated on purpose — GitHub Actions does not
+# support YAML anchors, so they cannot be shared. Keep them identical.
+#
+# firestore.indexes.json is deliberately NOT listed: --only firestore:rules
+# does not deploy indexes, so triggering on it would produce a green run that
+# shipped nothing. Indexes stay a manual `firebase deploy --only
+# firestore:indexes` — and note the file is currently empty, so deploying it
+# would propose deleting any index created in the Console.
+on:
+  pull_request:
+    paths:
+      - firestore.rules
+      - storage.rules
+      - firebase.json
+      - .github/workflows/deploy-rules.yml
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+      - storage.rules
+      - firebase.json
+      - .github/workflows/deploy-rules.yml
+  schedule:
+    # Mondays 06:00 UTC — a quiet slot; the run is a no-op unless drift exists.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: firebase-rules
+  cancel-in-progress: false
+
+env:
+  FIREBASE_PROJECT: open-museum-885a1
+  # Pinned so a CLI release cannot change deploy behaviour unnoticed.
+  FIREBASE_TOOLS_VERSION: 15.7.0
+
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+
+    # Pull requests from forks cannot mint an OIDC token, so the auth step would
+    # fail red through no fault of the contributor. Skip instead; the push to
+    # main still validates and deploys after merge.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/717967107645/locations/global/workloadIdentityPools/github-actions/providers/github-oidc' }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT || 'github-astro-build@open-museum-885a1.iam.gserviceaccount.com' }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools@${{ env.FIREBASE_TOOLS_VERSION }}
+
+      # Compiles both rulesets server-side without applying them. This is the
+      # only validation that works: the Firestore emulator accepts broken rules
+      # silently, so it cannot be used as a gate.
+      - name: Validate rules
+        run: |
+          firebase deploy \
+            --only firestore:rules,storage \
+            --project "$FIREBASE_PROJECT" \
+            --dry-run \
+            --non-interactive
+
+      - name: Deploy rules
+        if: github.event_name != 'pull_request'
+        id: deploy
+        run: |
+          set -o pipefail
+          firebase deploy \
+            --only firestore:rules,storage \
+            --project "$FIREBASE_PROJECT" \
+            --non-interactive 2>&1 | tee deploy.log
+
+      # Drift is "the CLI had to upload", which it logs as
+      # "<target>: uploading rules". Do NOT test for "released rules": the CLI
+      # prints that on every successful deploy, including runs where it skipped
+      # the upload because the live ruleset already matched, so it can never
+      # distinguish the two.
+      - name: Report drift
+        if: steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure'
+        run: |
+          {
+            echo "### Firebase rules"
+            echo
+            for target in firestore storage; do
+              if grep -q "$target: uploading rules" deploy.log; then
+                echo "- \`$target\`: **updated** — the live ruleset did not match the repo"
+              elif grep -q "$target: latest version of .* already up to date" deploy.log; then
+                echo "- \`$target\`: already in sync"
+              else
+                echo "- \`$target\`: **not deployed** — the run did not get this far"
+              fi
+            done
+            if [ "${{ github.event_name }}" = "schedule" ] && grep -q "uploading rules" deploy.log; then
+              echo
+              echo "> Drift corrected on a scheduled run. Something changed the rules"
+              echo "> outside this repo — check the Console audit log, and copy the"
+              echo "> intent back into the rules files if it was deliberate."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

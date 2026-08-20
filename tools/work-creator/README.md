@@ -21,8 +21,9 @@ page. It must be served rather than opened from disk: Firebase Auth rejects
    [`firestore.rules`](../../firestore.rules) and
    [`storage.rules`](../../storage.rules) — the two lists must match.
 
-2. **Deploy the rules.** Validate first; the dry run compiles them server-side
-   without applying anything:
+2. **Deploy the rules** by merging the change to `main` — the *Deploy Firebase
+   Rules* workflow publishes them, and validates them on the pull request
+   first. To apply them without waiting for a merge:
 
    ```bash
    firebase deploy --only firestore:rules,storage --project open-museum-885a1 --dry-run
@@ -31,6 +32,9 @@ page. It must be served rather than opened from disk: Firebase Auth rejects
    ```bash
    firebase deploy --only firestore:rules,storage --project open-museum-885a1
    ```
+
+   A local deploy is fine, but the repo is the source of truth: the scheduled
+   run redeploys weekly and will overwrite anything that does not match it.
 
 3. **Write the config.** Copy `creator.config.example.json` to
    `creator.config.json` in this folder and fill it in. That filename is
@@ -79,9 +83,9 @@ build refuses to run against an empty collection.
 
 ## Storage rules
 
-[`storage.rules`](../../storage.rules) is now tracked in this repo and is the
-source of truth — editing rules in the Console will be overwritten by the next
-`firebase deploy`. It preserves the read model the site depends on
+[`storage.rules`](../../storage.rules) is tracked in this repo and is the source
+of truth, enforced by the *Deploy Firebase Rules* workflow — editing rules in
+the Console will be overwritten on the next merge or scheduled run. It preserves the read model the site depends on
 (`models/**` needs a session, `images/**` is public) and adds admin-only
 `create`/`update` with content-type and size caps: 250 MB for models, 30 MB for
 images. Deletes are denied for everyone — removing an object a published
