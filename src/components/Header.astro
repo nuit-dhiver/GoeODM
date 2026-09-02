@@ -1,6 +1,6 @@
 ---
 import LanguageSwitcher from './LanguageSwitcher.astro';
-import { useTranslations, getAboutPath, getCategoryPath, getCityPath, cityNameToSlug, type Lang } from '@/i18n/ui';
+import { useTranslations, getAboutPath, getGalleryPath, getCityPath, cityNameToSlug, type Lang } from '@/i18n/ui';
 import { getCollection } from 'astro:content';
 import { hasLocale } from '@/utils/locales';
 
@@ -43,22 +43,22 @@ const cityNames = [
       <!-- Desktop nav links -->
       <div class="hidden md:flex items-center gap-1">
         <a
-          href={getCategoryPath(lang, 'brunnen')}
+          href={getGalleryPath(lang, 'fountains')}
           class="px-3 lg:px-4 py-2 font-heading text-sm font-semibold uppercase tracking-wider hover:bg-brand-gold hover:text-black transition-colors"
         >
-          {t('nav.brunnen')}
+          {t('nav.fountains')}
         </a>
         <a
-          href={getCategoryPath(lang, 'denkmal')}
+          href={getGalleryPath(lang, 'monuments')}
           class="px-3 lg:px-4 py-2 font-heading text-sm font-semibold uppercase tracking-wider hover:bg-brand-gold hover:text-black transition-colors"
         >
-          {t('nav.denkmale')}
+          {t('nav.monuments')}
         </a>
         <a
-          href={getCategoryPath(lang, 'kunstwerk')}
+          href={getGalleryPath(lang, 'artworks')}
           class="px-3 lg:px-4 py-2 font-heading text-sm font-semibold uppercase tracking-wider hover:bg-brand-gold hover:text-black transition-colors"
         >
-          {t('nav.kunstwerke')}
+          {t('nav.artworks')}
         </a>
         <a
           href={getAboutPath(lang)}
@@ -110,22 +110,22 @@ const cityNames = [
     <div id="mobile-menu" class="hidden md:hidden pb-4 border-t border-white/20 mt-2 pt-4">
       <div class="flex flex-col gap-2">
         <a
-          href={getCategoryPath(lang, 'brunnen')}
+          href={getGalleryPath(lang, 'fountains')}
           class="px-4 py-2 font-heading text-sm font-semibold uppercase tracking-wider hover:bg-brand-gold hover:text-black transition-colors"
         >
-          {t('nav.brunnen')}
+          {t('nav.fountains')}
         </a>
         <a
-          href={getCategoryPath(lang, 'denkmal')}
+          href={getGalleryPath(lang, 'monuments')}
           class="px-4 py-2 font-heading text-sm font-semibold uppercase tracking-wider hover:bg-brand-gold hover:text-black transition-colors"
         >
-          {t('nav.denkmale')}
+          {t('nav.monuments')}
         </a>
         <a
-          href={getCategoryPath(lang, 'kunstwerk')}
+          href={getGalleryPath(lang, 'artworks')}
           class="px-4 py-2 font-heading text-sm font-semibold uppercase tracking-wider hover:bg-brand-gold hover:text-black transition-colors"
         >
-          {t('nav.kunstwerke')}
+          {t('nav.artworks')}
         </a>
         <a
           href={getAboutPath(lang)}

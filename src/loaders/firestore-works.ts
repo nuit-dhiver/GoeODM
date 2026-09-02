@@ -5,6 +5,7 @@ import {
   FIRESTORE_PROJECT_ID,
   WORKS_COLLECTION,
 } from '../lib/firestore-content';
+import { readFileSync } from 'node:fs';
 
 /**
  * Build-time Astro content loader for works stored in Firestore.
@@ -20,7 +21,11 @@ export function firestoreWorksLoader(): Loader {
 
       let works;
       try {
-        works = await fetchWorksFromFirestore();
+        if (process.env.WORKS_FIXTURE) {
+          works = JSON.parse(readFileSync(process.env.WORKS_FIXTURE, 'utf8'));
+        } else {
+          works = await fetchWorksFromFirestore();
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         throw new Error(

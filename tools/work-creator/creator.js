@@ -1002,7 +1002,7 @@ function buildWorkData() {
   const data = {
     title: buildTitle(),
     description: localizedValue('desc'),
-    category: $('field-category').value,
+    gallery: $('field-gallery').value,
     model: {},
     photos: photoPaths(),
     location: {},

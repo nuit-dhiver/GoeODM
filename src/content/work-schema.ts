@@ -28,7 +28,7 @@ export const tourStepSchema = z.object({
 export const workSchema = z.object({
   title: localizedText,
   description: localizedText,
-  category: z.enum(['brunnen', 'denkmal', 'kunstwerk']),
+  gallery: z.enum(['fountains', 'monuments', 'artworks']),
   model: z.object({
     glb: z.string().optional(),
     usdz: z.string().optional(),

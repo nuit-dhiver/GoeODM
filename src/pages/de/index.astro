@@ -1,19 +1,49 @@
 ---
 import Base from '@/layouts/Base.astro';
-import CategoryCard from '@/components/CategoryCard.astro';
+import GalleryCard from '@/components/GalleryCard.astro';
 import Slideshow from '@/components/Slideshow.astro';
 import FeaturedWork from '@/components/FeaturedWork.astro';
 import StatsSection from '@/components/StatsSection.astro';
-import { useTranslations, getCategoryPath } from '@/i18n/ui';
+import { useTranslations, getGalleryPath, type Lang } from '@/i18n/ui';
 import { getAssetUrl } from '@/utils/assets';
+import { getCollection } from 'astro:content';
 
-const lang = 'de';
+const lang: Lang = 'de';
 const t = useTranslations(lang);
 
 const slideshowImages = [
   { src: getAssetUrl('/images/slideshow/placeholder-1.jpg'), alt: 'Denkmal' },
   { src: getAssetUrl('/images/slideshow/placeholder-2.jpg'), alt: 'Skulptur' },
   { src: getAssetUrl('/images/slideshow/placeholder-3.jpg'), alt: 'Brunnen' },
+];
+
+const allGalleries = await getCollection('galleries');
+
+const galleryCards = [
+  {
+    id: 'fountains' as const,
+    title: allGalleries.find(g => g.id === 'fountains') ? t('gallery.fountains.title') : t('nav.fountains'),
+    description: allGalleries.find(g => g.id === 'fountains') ? t('gallery.fountains.description') : '',
+    href: getGalleryPath(lang, 'fountains'),
+    icon: 'fountain' as const,
+    accentColor: 'blue' as const,
+  },
+  {
+    id: 'monuments' as const,
+    title: allGalleries.find(g => g.id === 'monuments') ? t('gallery.monuments.title') : t('nav.monuments'),
+    description: allGalleries.find(g => g.id === 'monuments') ? t('gallery.monuments.description') : '',
+    href: getGalleryPath(lang, 'monuments'),
+    icon: 'monument' as const,
+    accentColor: 'red' as const,
+  },
+  {
+    id: 'artworks' as const,
+    title: allGalleries.find(g => g.id === 'artworks') ? t('gallery.artworks.title') : t('nav.artworks'),
+    description: allGalleries.find(g => g.id === 'artworks') ? t('gallery.artworks.description') : '',
+    href: getGalleryPath(lang, 'artworks'),
+    icon: 'artwork' as const,
+    accentColor: 'gold' as const,
+  },
 ];
 
 const organizationSchema = {
@@ -51,27 +81,9 @@ const organizationSchema = {
   <section class="py-16 sm:py-24 bg-off-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <CategoryCard
-          title={t('category.brunnen')}
-          description={t('category.brunnen.desc')}
-          href={getCategoryPath(lang, 'brunnen')}
-          icon="fountain"
-          accentColor="blue"
-        />
-        <CategoryCard
-          title={t('category.denkmal')}
-          description={t('category.denkmal.desc')}
-          href={getCategoryPath(lang, 'denkmal')}
-          icon="monument"
-          accentColor="red"
-        />
-        <CategoryCard
-          title={t('category.kunstwerk')}
-          description={t('category.kunstwerk.desc')}
-          href={getCategoryPath(lang, 'kunstwerk')}
-          icon="artwork"
-          accentColor="gold"
-        />
+        {galleryCards.map((gallery) => (
+          <GalleryCard gallery={gallery} />
+        ))}
       </div>
     </div>
   </section>

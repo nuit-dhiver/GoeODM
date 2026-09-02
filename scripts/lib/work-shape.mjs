@@ -10,7 +10,13 @@
  * Keep the two in sync when fields change.
  */
 
-export const WORK_CATEGORIES = ['brunnen', 'denkmal', 'kunstwerk'];
+export const GALLERY_IDS = ['fountains', 'monuments', 'artworks'];
+
+export const GALLERY_ID_MAP = {
+  brunnen: 'fountains',
+  denkmal: 'monuments',
+  kunstwerk: 'artworks',
+};
 
 export const IP_STATUSES = ['public-domain', 'freedom-of-panorama', 'authorized-use'];
 
@@ -239,8 +245,8 @@ export function validateWorkShape(work) {
   errors.push(...localizedErrors(data.title, 'title', { required: true }));
   errors.push(...localizedErrors(data.description, 'description', { required: true }));
 
-  if (!WORK_CATEGORIES.includes(data.category)) {
-    errors.push(`category must be one of ${WORK_CATEGORIES.join(' | ')}`);
+  if (!GALLERY_IDS.includes(data.gallery)) {
+    errors.push(`gallery must be one of ${GALLERY_IDS.join(' | ')}`);
   }
 
   if (!isPlainObject(data.model)) {
@@ -396,8 +402,8 @@ export function assertWorkShape(work, sourceLabel) {
   if (workLocales(data).length === 0) {
     errors.push('title and description are required together in at least one locale');
   }
-  if (!WORK_CATEGORIES.includes(data?.category)) {
-    errors.push(`category must be ${WORK_CATEGORIES.join('|')}`);
+  if (!GALLERY_IDS.includes(data?.gallery)) {
+    errors.push(`gallery must be ${GALLERY_IDS.join('|')}`);
   }
   if (!data?.model || typeof data.model !== 'object') {
     errors.push('model object is required');

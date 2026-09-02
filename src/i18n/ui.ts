@@ -11,9 +11,9 @@ export const ui = {
   de: {
     // Navigation
     'nav.home': 'Startseite',
-    'nav.brunnen': 'Brunnen',
-    'nav.denkmale': 'Denkmäler',
-    'nav.kunstwerke': 'Kunstwerke',
+    'nav.fountains': 'Brunnen',
+    'nav.monuments': 'Denkmäler',
+    'nav.artworks': 'Kunstwerke',
     'nav.cities': 'Städte',
     'nav.about': 'Über',
 
@@ -24,13 +24,13 @@ export const ui = {
     'home.featured.cta': 'Werk ansehen',
     'home.slideshow.title': 'Impressionen',
 
-    // Categories
-    'category.brunnen': 'Brunnen',
-    'category.brunnen.desc': 'Historische und moderne Brunnen im Stadtgebiet',
-    'category.denkmal': 'Denkmäler',
-    'category.denkmal.desc': 'Denkmäler und Gedenkstätten in Göttingen',
-    'category.kunstwerk': 'Kunstwerke',
-    'category.kunstwerk.desc': 'Skulpturen und Kunstinstallationen im öffentlichen Raum',
+    // Galleries
+    'gallery.fountains.title': 'Brunnen',
+    'gallery.fountains.description': 'Historische und moderne Brunnen im Stadtgebiet',
+    'gallery.monuments.title': 'Denkmäler',
+    'gallery.monuments.description': 'Denkmäler und Gedenkstätten in Göttingen',
+    'gallery.artworks.title': 'Kunstwerke',
+    'gallery.artworks.description': 'Skulpturen und Kunstinstallationen im öffentlichen Raum',
 
     // Work detail
     'work.photos': 'Fotos',
@@ -39,7 +39,7 @@ export const ui = {
     'work.year': 'Jahr',
     'work.material': 'Material',
     'work.modelCreator': '3D-Rekonstruktion von',
-    'work.back': 'Zurück zur Kategorie',
+    'work.back': 'Zurück zur Galerie',
     'work.view3d': '3D-Modell ansehen',
     'work.viewAR': 'In AR ansehen',
     'work.download': 'Herunterladen',
@@ -114,15 +114,15 @@ export const ui = {
 
     // Misc
     'loading': 'Wird geladen…',
-    'noworks': 'Noch keine Werke in dieser Kategorie.',
+    'noworks': 'Noch keine Werke in dieser Galerie.',
     'noworks.city': 'Noch keine Werke in dieser Stadt.',
   },
   en: {
     // Navigation
     'nav.home': 'Home',
-    'nav.brunnen': 'Fountains',
-    'nav.denkmale': 'Monuments',
-    'nav.kunstwerke': 'Artworks',
+    'nav.fountains': 'Fountains',
+    'nav.monuments': 'Monuments',
+    'nav.artworks': 'Artworks',
     'nav.cities': 'Cities',
     'nav.about': 'About',
 
@@ -133,13 +133,13 @@ export const ui = {
     'home.featured.cta': 'View work',
     'home.slideshow.title': 'Impressions',
 
-    // Categories
-    'category.brunnen': 'Fountains',
-    'category.brunnen.desc': 'Historic and modern fountains across the city',
-    'category.denkmal': 'Monuments',
-    'category.denkmal.desc': 'Monuments and memorials in Göttingen',
-    'category.kunstwerk': 'Artworks',
-    'category.kunstwerk.desc': 'Sculptures and public art installations',
+    // Galleries
+    'gallery.fountains.title': 'Fountains',
+    'gallery.fountains.description': 'Historic and modern fountains across the city',
+    'gallery.monuments.title': 'Monuments',
+    'gallery.monuments.description': 'Monuments and memorials in Göttingen',
+    'gallery.artworks.title': 'Artworks',
+    'gallery.artworks.description': 'Sculptures and public art installations',
 
     // Work detail
     'work.photos': 'Photos',
@@ -148,7 +148,7 @@ export const ui = {
     'work.year': 'Year',
     'work.material': 'Material',
     'work.modelCreator': '3D reconstruction by',
-    'work.back': 'Back to category',
+    'work.back': 'Back to gallery',
     'work.view3d': 'View 3D model',
     'work.viewAR': 'View in AR',
     'work.download': 'Download',
@@ -223,7 +223,7 @@ export const ui = {
 
     // Misc
     'loading': 'Loading…',
-    'noworks': 'No works in this category yet.',
+    'noworks': 'No works in this gallery yet.',
     'noworks.city': 'No works in this city yet.',
   },
 } as const;
@@ -273,16 +273,11 @@ export function getCityPath(lang: Lang, citySlug: string): string {
 }
 
 /**
- * Get the localized path for category pages.
+ * Get the localized path for gallery pages.
  */
-export function getCategoryPath(lang: Lang, category: 'brunnen' | 'denkmal' | 'kunstwerk'): string {
+export function getGalleryPath(lang: Lang, galleryId: 'fountains' | 'monuments' | 'artworks'): string {
   const base = import.meta.env.BASE_URL;
-  const categorySlugs = {
-    brunnen: 'fountains',
-    denkmal: 'monuments',
-    kunstwerk: 'artworks',
-  };
-  return `${base}${lang}/${categorySlugs[category]}/`;
+  return `${base}${lang}/${galleryId}/`;
 }
 
 /**
@@ -313,7 +308,7 @@ export function getAlternateLanguagePath(currentPath: string, currentLang: Lang)
     if (path === 'de' || path === 'de/' || path === '' || path === '/') return `${base}en/`;
     if (path.startsWith('de/')) return `${base}en/${path.slice('de/'.length)}`;
 
-    // Legacy paths
+    // Legacy paths (old German category URLs)
     if (path.startsWith('brunnen')) return `${base}en/fountains/${path.slice('brunnen/'.length)}`;
     if (path.startsWith('denkmale')) return `${base}en/monuments/${path.slice('denkmale/'.length)}`;
     if (path.startsWith('kunstwerke')) return `${base}en/artworks/${path.slice('kunstwerke/'.length)}`;
@@ -325,7 +320,7 @@ export function getAlternateLanguagePath(currentPath: string, currentLang: Lang)
     if (path === '' || path === '/' || path === 'en/' || path === 'en') return `${base}de/`;
     if (path.startsWith('en/')) return `${base}de/${path.slice('en/'.length)}`;
 
-    // Legacy paths
+    // Legacy paths (old English work/city URLs)
     if (path.startsWith('works/')) return `${base}de/${path.slice('works/'.length)}`;
     if (path.startsWith('cities/')) return `${base}de/cities/${path.slice('cities/'.length)}`;
     return `${base}de/${path}`;
