@@ -13,6 +13,9 @@ export const FIRESTORE_DATABASE_ID =
 export const WORKS_COLLECTION =
   process.env.FIRESTORE_WORKS_COLLECTION?.trim() || 'works';
 
+export const GALLERIES_COLLECTION =
+  process.env.FIRESTORE_GALLERIES_COLLECTION?.trim() || 'galleries';
+
 let firestoreClient: Firestore | null = null;
 
 export function getContentFirestore(): Firestore {
@@ -32,6 +35,11 @@ export type WorkDocument = {
   data: Record<string, unknown>;
 };
 
+export type GalleryDocument = {
+  id: string;
+  data: Record<string, unknown>;
+};
+
 export async function fetchWorksFromFirestore(): Promise<WorkDocument[]> {
   const db = getContentFirestore();
   const snapshot = await db.collection(WORKS_COLLECTION).get();
@@ -43,4 +51,17 @@ export async function fetchWorksFromFirestore(): Promise<WorkDocument[]> {
 
   works.sort((a, b) => a.id.localeCompare(b.id));
   return works;
+}
+
+export async function fetchGalleriesFromFirestore(): Promise<GalleryDocument[]> {
+  const db = getContentFirestore();
+  const snapshot = await db.collection(GALLERIES_COLLECTION).get();
+
+  const galleries = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    data: doc.data() as Record<string, unknown>,
+  }));
+
+  galleries.sort((a, b) => a.id.localeCompare(b.id));
+  return galleries;
 }

@@ -13,6 +13,10 @@
     "works:migrate:dry": "node scripts/migrate-works-to-firestore.mjs --dry-run",
     "works:migrate": "node scripts/migrate-works-to-firestore.mjs",
     "works:verify": "node scripts/migrate-works-to-firestore.mjs --verify",
+    "works:create-galleries:dry": "node scripts/create-galleries.mjs --dry-run",
+    "works:create-galleries": "node scripts/create-galleries.mjs",
+    "works:migrate-category-to-gallery:dry": "node scripts/migrate-category-to-gallery.mjs --dry-run",
+    "works:migrate-category-to-gallery": "node scripts/migrate-category-to-gallery.mjs",
     "work:create": "node scripts/serve-tools.mjs --open /tools/work-creator/",
     "tools:serve": "node scripts/serve-tools.mjs",
     "test:assets:changed": "node scripts/ci/asset-health-check.mjs"

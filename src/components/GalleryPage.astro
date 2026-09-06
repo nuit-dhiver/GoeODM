@@ -1,27 +1,26 @@
 ---
 import Base from '@/layouts/Base.astro';
 import WorkCard from '@/components/WorkCard.astro';
-import { useTranslations, ui, languages, type Lang, getWorkPath } from '@/i18n/ui';
+import { useTranslations, type Lang, getGalleryPath } from '@/i18n/ui';
 import { getCollection } from 'astro:content';
 import { getAssetUrl } from '@/utils/assets';
 import { hasLocale, localized } from '@/utils/locales';
 
 interface Props {
   lang: Lang;
-  cityName: string;
+  galleryId: 'fountains' | 'monuments' | 'artworks';
 }
 
-const { lang, cityName } = Astro.props;
+const { lang, galleryId } = Astro.props;
 const t = useTranslations(lang);
 
 const allWorks = await getCollection('works');
-const cityWorks = allWorks.filter((w) => w.data.city === cityName);
-const works = cityWorks.filter((w) => hasLocale(w.data, lang));
+const allGalleries = await getCollection('galleries');
 
-// A city page exists only in locales where that city has works, so the
-// language switcher and hreflang must not offer the others.
-const availableLocales = Object.keys(languages).filter((code) =>
-  cityWorks.some((w) => hasLocale(w.data, code as Lang)),
+const gallery = allGalleries.find((g) => g.id === galleryId);
+
+const works = allWorks.filter(
+  (w) => w.data.gallery === galleryId && hasLocale(w.data, lang),
 );
 
 const siteUrl = Astro.site?.href.replace(/\/$/, '') ?? '';
@@ -29,12 +28,12 @@ const siteUrl = Astro.site?.href.replace(/\/$/, '') ?? '';
 const itemListSchema = {
   '@context': 'https://schema.org',
   '@type': 'ItemList',
-  name: cityName,
+  name: gallery ? localized(gallery.data.title, lang, galleryId) : galleryId,
   numberOfItems: works.length,
   itemListElement: works.map((work, i) => ({
     '@type': 'ListItem',
     position: i + 1,
-    url: `${siteUrl}${getWorkPath(lang, work.id)}`,
+    url: `${siteUrl}${getGalleryPath(lang, galleryId)}${work.id}/`,
     name: localized(work.data.title, lang, 'title'),
   })),
 };
@@ -44,24 +43,26 @@ const breadcrumbSchema = {
   '@type': 'BreadcrumbList',
   itemListElement: [
     { '@type': 'ListItem', position: 1, name: t('nav.home'), item: `${siteUrl}/${lang}/` },
-    { '@type': 'ListItem', position: 2, name: t('nav.cities'), item: `${siteUrl}/${lang}/cities/` },
-    { '@type': 'ListItem', position: 3, name: cityName },
+    { '@type': 'ListItem', position: 2, name: gallery ? localized(gallery.data.title, lang, galleryId) : galleryId },
   ],
 };
+
+const galleryTitle = gallery ? localized(gallery.data.title, lang, galleryId) : galleryId;
+const galleryDescription = gallery ? localized(gallery.data.description, lang, galleryId) : '';
+const galleryDescKey = `gallery.${galleryId}.description`;
 ---
 
-<Base title={`${cityName} — Open Museum`} description={cityName} availableLocales={availableLocales}>
+<Base title={`${galleryTitle} — Open Museum`} description={galleryDescription}>
   <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
   <script is:inline slot="head" type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
   <!-- Page header -->
   <section class="bg-black text-white py-12 sm:py-16 border-b-brutal border-brand-gold">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <h1 class="font-heading text-4xl sm:text-5xl font-bold uppercase tracking-wider mb-3">
-        {cityName}
+        {galleryTitle}
       </h1>
       <p class="text-white/70 text-lg">
-        {works.length}
-        {lang === 'de' ? 'Werke in dieser Stadt' : 'works in this city'}
+        {galleryDescription || t(galleryDescKey)}
       </p>
     </div>
   </section>
@@ -84,7 +85,7 @@ const breadcrumbSchema = {
       ) : (
         <div class="text-center py-16">
           <p class="text-lg text-black/50 font-heading uppercase tracking-wider">
-            {t('noworks.city')}
+            {t('noworks')}
           </p>
         </div>
       )}

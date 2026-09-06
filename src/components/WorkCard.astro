@@ -5,23 +5,23 @@ interface Props {
   slug: string;
   title: string;
   poster?: string;
-  category: 'brunnen' | 'denkmal' | 'kunstwerk';
+  gallery: 'fountains' | 'monuments' | 'artworks';
   lang: Lang;
 }
 
-const { slug, title, poster, category, lang } = Astro.props;
+const { slug, title, poster, gallery, lang } = Astro.props;
 const href = getWorkPath(lang, slug);
 
 const accentColors = {
-  brunnen: 'border-brand-blue shadow-brutal-blue',
-  denkmal: 'border-brand-red shadow-brutal-red',
-  kunstwerk: 'border-brand-gold shadow-brutal-gold',
+  fountains: 'border-brand-blue shadow-brutal-blue',
+  monuments: 'border-brand-red shadow-brutal-red',
+  artworks: 'border-brand-gold shadow-brutal-gold',
 };
 ---
 
 <a href={href} class="group block">
   <article
-    class={`border-3 bg-white overflow-hidden transition-all duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 ${accentColors[category]}`}
+    class={`border-3 bg-white overflow-hidden transition-all duration-150 hover:-translate-x-0.5 hover:-translate-y-0.5 ${accentColors[gallery]}`}
   >
     <!-- Thumbnail -->
     <div class="aspect-[4/3] bg-gray-100 overflow-hidden">

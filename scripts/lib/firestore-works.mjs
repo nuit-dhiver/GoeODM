@@ -3,7 +3,8 @@ import { Firestore } from '@google-cloud/firestore';
 // Shape helpers live in a dependency-free module so the browser tool in
 // tools/work-creator/ can import the same validation over HTTP.
 export {
-  WORK_CATEGORIES,
+  GALLERY_IDS,
+  GALLERY_ID_MAP,
   IP_STATUSES,
   RESERVED_SLUGS,
   SLUG_PATTERN,

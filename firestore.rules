@@ -10,7 +10,7 @@ service cloud.firestore {
     // Fields:
     //   - title: map of locale -> string, e.g. { de, en } (at least one)
     //   - description: map of locale -> string (at least one, sharing a locale with title)
-    //   - category: string enum brunnen|denkmal|kunstwerk (required)
+    //   - gallery: string enum fountains|monuments|artworks (required)
     //   - model: map { glb?: string, usdz?: string } (required)
     //   - photos: list of string (optional, default [])
     //   - poster: string (optional)
@@ -21,10 +21,18 @@ service cloud.firestore {
     //   - ipStatus: string enum public-domain|freedom-of-panorama|authorized-use
     //   - tour: list of tour step maps (optional)
     //
+    // Collection: galleries
+    // Document ID: gallery slug (e.g. fountains)
+    // Fields:
+    //   - id: string (same as document ID)
+    //   - title: map of locale -> string (at least one)
+    //   - description: map of locale -> string (at least one)
+    //
     // Access model:
-    //   - Public read: work content is published website data
+    //   - Public read: work/gallery content is published website data
     //   - Writes to works/{slug}: only the content admins listed in
     //     isContentAdmin(), and only documents that pass isValidWork()
+    //   - Writes to galleries/{slug}: only content admins, create-only
     //   - Everything else: no client writes
     //   - Firebase Console / Admin CLI / server SDK writes use IAM and
     //     bypass these rules entirely
@@ -62,17 +70,17 @@ service cloud.firestore {
 
     function isValidWork(data) {
       return data.keys().hasAll([
-          'title', 'description', 'category', 'model',
+          'title', 'description', 'gallery', 'model',
           'photos', 'location', 'downloadAllowed', 'ipStatus'
         ])
         && data.keys().hasOnly([
-          'title', 'description', 'category', 'model', 'photos', 'poster',
+          'title', 'description', 'gallery', 'model', 'photos', 'poster',
           'location', 'city', 'country', 'artist', 'modelCreator', 'year',
           'material', 'downloadAllowed', 'ipStatus', 'tour'
         ])
         && isLocalized(data.title)
         && isLocalized(data.description)
-        && data.category in ['brunnen', 'denkmal', 'kunstwerk']
+        && data.gallery in ['fountains', 'monuments', 'artworks']
         && data.model is map
         && data.model.keys().hasOnly(['glb', 'usdz'])
         && data.model.glb is string && data.model.glb.size() > 0
@@ -103,6 +111,22 @@ service cloud.firestore {
       // Deletes stay closed: src/loaders/firestore-works.ts refuses to build
       // with an empty collection, so an accidental client-side delete could
       // block all publishing. Remove works from the Console instead.
+      allow delete: if false;
+    }
+
+    function isValidGallery(data) {
+      return data.keys().hasAll(['title', 'description'])
+        && data.keys().hasOnly(['title', 'description'])
+        && isLocalized(data.title)
+        && isLocalized(data.description);
+    }
+
+    match /galleries/{slug} {
+      allow read: if true;
+
+      // Create only. Galleries are created once and edited in the Console.
+      allow create: if isContentAdmin() && isValidGallery(request.resource.data);
+      allow update: if false;
       allow delete: if false;
     }
 
