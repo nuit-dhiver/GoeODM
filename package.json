@@ -42,8 +42,8 @@
       "websocket-driver": "0.7.5",
       "undici": "7.29.0",
       "protobufjs": "7.6.5",
-      "fast-uri": "3.1.5",
-      "postcss": "8.5.18",
+      "fast-uri": "3.1.7",
+      "postcss": "8.5.28",
       "js-yaml": "4.3.1",
       "nanoid": "3.3.18"
     }
